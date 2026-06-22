@@ -93,5 +93,12 @@ export function publishCommit(p: {
 }): Promise<PublishResult>;
 /** Default NIP-01 WebSocket relay publisher (Node>=21/Bun/browser). Inject your own on older runtimes. */
 export function relayPublish(relayUrl: string, event: object, opts?: { timeoutMs?: number }): Promise<boolean>;
+/**
+ * Pack a SIGNED kind-30078 event into the `receiptProof` bytes the on-chain BIP340Verifier
+ * (IReceiptVerifier impl A) consumes: 0x-hex of abi.encode(px, rx, s, preimage). The on-chain id is
+ * sha256(preimage) over the same NIP-01 bytes — so verifyFullFlow (off-chain) and verify (on-chain)
+ * read byte-identical input. Requires event.sig (the SDK never signs).
+ */
+export function packReceiptProof(event: Record<string, any>): string;
 export const PROOF_KIND: number;
 export const CORE: { name: string; verifies_like: string; proof_kind: number };

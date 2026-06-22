@@ -106,6 +106,23 @@ There is **no `POST /ledger/commit`** and there shouldn't be — `/ledger` is re
 anchor through a server would re-centralize the exact thing the commitment-proof model makes trustless.
 `publishCommit` anchors to public sources anyone re-derives; nothing routes through us.
 
+## On-chain pairing — `packReceiptProof()`
+
+When a consumer wants the `valid` (signature) leg enforced **on-chain trusting no one** (e.g. the
+`recovery-escrow` flow's `BIP340Verifier`, IReceiptVerifier impl A — BIP-340 via the `ecrecover` trick),
+pack a signed event into the exact bytes its `verify()` consumes:
+
+```js
+const { packReceiptProof } = require('@onchain-ai/agent-sdk');
+const receiptProof = packReceiptProof(signedEvent); // 0x abi.encode(px, rx, s, preimage)
+// escrow.release(jobId, receiptProof) → contract computes id = sha256(preimage), BIP-340-verifies,
+// and extracts artifact_hash from the SAME signed bytes. Off-chain verifyFullFlow() and on-chain
+// verify() therefore read byte-identical input — the same anti-drift discipline as normalizeSpec.
+```
+
+The SDK never signs — `event.sig` must already be present. No trusted key, no oracle: the chain
+recomputes the id and checks the signature itself.
+
 ## Why I/O is injected
 
 Relay fetch and OTS calendar access are network, environment, and policy dependent. Keeping them out of
