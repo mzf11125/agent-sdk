@@ -23,10 +23,34 @@ function canonical(value) {
   return JSON.stringify(value);
 }
 
+const EVM_ADDRESS = /^0x[0-9a-fA-F]{40}$/;
+
+/**
+ * The single normalization point (v0.2). Recursively lowercases EVM-address-shaped strings
+ * (0x + 40 hex) anywhere in a spec, leaving everything else byte-identical. Run it on BOTH sides —
+ * the committer (e.g. receipt.ts) and the escrow (expect_artifact_hash) — so artifact_hash is stable
+ * regardless of input checksum-casing, and `canonical()` itself never has to special-case addresses.
+ * This is what kills canonicalization drift: one function, identical on both sides.
+ *
+ *   const h      = artifactHash(normalizeSpec(spec));   // committer
+ *   const expect = artifactHash(normalizeSpec(spec));   // escrow — byte-identical input → same hash
+ */
+function normalizeSpec(value) {
+  if (Array.isArray(value)) return value.map(normalizeSpec);
+  if (value && typeof value === 'object') {
+    const out = {};
+    for (const k of Object.keys(value)) out[k] = normalizeSpec(value[k]);
+    return out;
+  }
+  if (typeof value === 'string' && EVM_ADDRESS.test(value)) return value.toLowerCase();
+  return value;
+}
+
 /**
  * Hash a job spec to the value that goes in the commit AND that the escrow passes as expect_artifact_hash.
  * Put a job_id/salt in the spec so two legitimately-identical jobs stay distinct (and don't collide
  * under a nullifier). Keep result_ref / settled-tx OUT — that's the outcome leg, not the commit.
+ * `artifactHash` is pure and case-agnostic about addresses — normalize upstream with `normalizeSpec`.
  */
 function artifactHash(spec) {
   return toHex(sha256(new TextEncoder().encode(canonical(spec))));
@@ -59,4 +83,4 @@ function buildCommitEvent({ spec, pubkey, judgmentType, schema = 'onchain-ai.com
   return { event, id, artifact_hash };
 }
 
-module.exports = { buildCommitEvent, artifactHash, canonical };
+module.exports = { buildCommitEvent, artifactHash, canonical, normalizeSpec };
