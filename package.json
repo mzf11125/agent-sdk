@@ -1,12 +1,12 @@
 {
   "name": "@onchain-ai/agent-sdk",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Off-chain verify/recompute layer for the onchain-ai boundary chain: commit-before-outcome, anchor to public sources, verify any layer's claims trusting no one.",
   "main": "src/index.js",
   "types": "src/index.d.ts",
   "files": ["src", "README.md", "LICENSE"],
   "scripts": {
-    "test": "node test/verify.test.js"
+    "test": "node test/verify.test.js && node test/publish.test.js && node test/onchain.test.js"
   },
   "dependencies": {
     "@noble/curves": "1.9.7",
