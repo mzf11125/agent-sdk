@@ -22,7 +22,7 @@ assert.strictEqual(artifactHash(spec), artifactHash({ asset_set: ['ENS'], output
 // 2. build → sign → verify round-trips
 const { event, artifact_hash } = buildCommitEvent({ spec, pubkey: pk, judgmentType: 'recovery_receipt' });
 event.sig = hex(schnorr.sign(event.id, sk));
-const r = verifyProof(event, { expectPubkey: pk, schemaPrefix: 'onchain-ai.' });
+const r = verifyProof(event, { expectPubkey: pk, schemaPrefix: 'trustless-ai.' });
 assert.strictEqual(r.valid, true, 'signed commit must verify');
 assert.strictEqual(r.checks.id_integrity, true);
 assert.strictEqual(r.checks.signature_valid, true);
@@ -33,7 +33,7 @@ const bad = { ...event, content: event.content.replace('recovery_receipt', 'evil
 assert.strictEqual(verifyProof(bad, { expectPubkey: pk }).valid, false, 'tampered content must fail');
 
 // 4. full-flow gate: ok only when valid && hash matches && anchored
-const okFlow = verifyFullFlow({ proofEvent: event, expectArtifactHash: artifact_hash, expectPubkey: pk, schemaPrefix: 'onchain-ai.', relaySeen: true, otsVerified: true });
+const okFlow = verifyFullFlow({ proofEvent: event, expectArtifactHash: artifact_hash, expectPubkey: pk, schemaPrefix: 'trustless-ai.', relaySeen: true, otsVerified: true });
 assert.strictEqual(okFlow.ok, true, 'all three legs true → ok');
 const wrongHash = verifyFullFlow({ proofEvent: event, expectArtifactHash: 'deadbeef', expectPubkey: pk, relaySeen: true, otsVerified: true });
 assert.strictEqual(wrongHash.ok, false, 'wrong artifact hash → not ok (replay/wrong-job blocked)');

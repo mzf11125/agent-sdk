@@ -1,4 +1,4 @@
-// Type surface for @onchain-ai/agent-sdk (v0.2).
+// Type surface for @trustless-ai/agent-sdk (v0.2).
 
 export interface VerifyResult {
   valid: boolean;
@@ -11,7 +11,7 @@ export interface VerifyResult {
 export interface VerifyOpts {
   /** x-only hex of the issuer you require (authorship gate). Omit to skip. */
   expectPubkey?: string;
-  /** require content.schema to start with this, e.g. "onchain-ai." */
+  /** require content.schema to start with this, e.g. "trustless-ai." */
   schemaPrefix?: string;
 }
 

@@ -1,4 +1,4 @@
-// @onchain-ai/agent-sdk — publish.js (v0.2)
+// @trustless-ai/agent-sdk — publish.js (v0.2)
 //
 // The anchor leg. A signed commit event becomes trustless when it is anchored to PUBLIC sources that
 // anyone re-derives — without routing through any server (there is no POST /ledger/commit, and there

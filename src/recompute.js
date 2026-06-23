@@ -1,4 +1,4 @@
-// @onchain-ai/agent-sdk — recompute.js
+// @trustless-ai/agent-sdk — recompute.js
 //
 // Re-derive a record from public, signed events — pure over events you fetched from relays. The point
 // is that anyone re-runs this over the same public data and gets the same answer: no stored score, no

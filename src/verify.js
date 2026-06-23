@@ -1,4 +1,4 @@
-// @onchain-ai/agent-sdk — verify.js
+// @trustless-ai/agent-sdk — verify.js
 //
 // The zero-dependency-ish trust anchor: recompute a Nostr proof event's NIP-01 id and BIP-340
 // signature, trusting no service. Generalized from the invinoveritas reference verifier so it works
@@ -29,7 +29,7 @@ function nostrEventId(ev) {
  * @param {object} event  the signed Nostr event {id,pubkey,created_at,kind,tags,content,sig}
  * @param {object} [opts]
  * @param {string} [opts.expectPubkey]   x-only hex of the issuer you require (authorship gate). Omit to skip.
- * @param {string} [opts.schemaPrefix]   require content.schema to start with this (e.g. "onchain-ai." or "invinoveritas.").
+ * @param {string} [opts.schemaPrefix]   require content.schema to start with this (e.g. "trustless-ai." or "invinoveritas.").
  * `valid` is true only if every present check holds — id integrity, signature, (authorship), (proof shape).
  */
 function verifyProof(event, opts = {}) {

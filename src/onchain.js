@@ -1,4 +1,4 @@
-// @onchain-ai/agent-sdk — onchain.js (v0.2)
+// @trustless-ai/agent-sdk — onchain.js (v0.2)
 //
 // packReceiptProof: pack a SIGNED commit event into the exact `receiptProof` bytes the on-chain
 // `BIP340Verifier` (IReceiptVerifier impl A) consumes. Same anti-drift discipline as normalizeSpec —
