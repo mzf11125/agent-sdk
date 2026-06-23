@@ -1,4 +1,4 @@
-// @onchain-ai/agent-sdk — the off-chain verify/recompute layer for the onchain-ai boundary chain.
+// @trustless-ai/agent-sdk — the off-chain verify/recompute layer for the trustless-ai boundary chain.
 //
 // One install, one API, to commit-before-outcome, anchor to public sources, and verify any layer's
 // claims without trusting anyone. A thin, transparent wrapper over an auditable zero-I/O core — every

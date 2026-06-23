@@ -1,4 +1,4 @@
-// @onchain-ai/agent-sdk — flow.js
+// @trustless-ai/agent-sdk — flow.js
 //
 // verifyFullFlow: the composition chain executed as one gate. It is intentionally PURE — you feed it
 // the proof event plus the anchor evidence (relay-seen + OTS-verified, gathered by your I/O of choice),
@@ -19,7 +19,7 @@ const { verifyProof } = require('./verify');
  * @param {object} p.proofEvent          the signed kind-30078 receipt/commit event
  * @param {string} p.expectArtifactHash  the job's expected H(spec) the escrow holds
  * @param {string} [p.expectPubkey]      issuer authorship to require
- * @param {string} [p.schemaPrefix]      e.g. "onchain-ai."
+ * @param {string} [p.schemaPrefix]      e.g. "trustless-ai."
  * @param {boolean} [p.relaySeen]        did a public relay hold this event id at/ before the outcome? (your I/O)
  * @param {boolean} [p.otsVerified]      did `ots verify -d <event_id>` confirm the Bitcoin-PoW anchor? (your I/O)
  * @returns {{ ok: boolean, valid: boolean, artifact_hash_matches: boolean, anchored: boolean, verify: object }}

@@ -1,11 +1,11 @@
-# @onchain-ai/agent-sdk
+# @trustless-ai/agent-sdk
 
-The off-chain **verify / recompute** layer of the [onchain-ai](https://github.com/onchain-ai) boundary
+The off-chain **verify / recompute** layer of the [trustless-ai](https://github.com/trustless-ai) boundary
 chain. One install to **commit-before-outcome**, anchor to public sources, and **verify any layer's
 claims trusting no one**.
 
 ```bash
-npm install @onchain-ai/agent-sdk
+npm install @trustless-ai/agent-sdk
 ```
 
 > **Status: v0.2.** The pure core (verify, commit-hash, `normalizeSpec`, the full-flow gate, recompute)
@@ -22,16 +22,16 @@ npm test     # build a commit, sign it, verify it, exercise the gate — no netw
 
 ## The trust anchor, and the convenience layer over it (both shown, never a black box)
 
-Per the org [CONTRIBUTING](https://github.com/onchain-ai/.github/blob/main/CONTRIBUTING.md), the
+Per the org [CONTRIBUTING](https://github.com/trustless-ai/.github/blob/main/CONTRIBUTING.md), the
 zero-I/O verify core is first-class and you can always step underneath the one-liner:
 
 ```js
-const { verifyFullFlow, verifyProof } = require('@onchain-ai/agent-sdk');
+const { verifyFullFlow, verifyProof } = require('@trustless-ai/agent-sdk');
 
 // convenience: the whole gate in one call
 const gate = verifyFullFlow({
   proofEvent, expectArtifactHash, expectPubkey,
-  schemaPrefix: 'onchain-ai.', relaySeen, otsVerified,
+  schemaPrefix: 'trustless-ai.', relaySeen, otsVerified,
 });
 // gate.ok === verify.valid && artifact_hash_matches && anchored
 
@@ -58,7 +58,7 @@ two are the contract's job.
 ## Commit-before-outcome
 
 ```js
-const { buildCommitEvent, artifactHash, normalizeSpec } = require('@onchain-ai/agent-sdk');
+const { buildCommitEvent, artifactHash, normalizeSpec } = require('@trustless-ai/agent-sdk');
 
 // artifact_hash = canonical hash of the job spec. Put a job_id/salt in so two identical jobs stay
 // distinct; keep result_ref / settled-tx OUT (that's the outcome leg). normalizeSpec FIRST (below).
@@ -88,7 +88,7 @@ and leaves everything else untouched. Run it on both sides and checksum-casing c
 ## Anchor — `publishCommit()` (relay + OTS), injected I/O, never signs
 
 ```js
-const { publishCommit } = require('@onchain-ai/agent-sdk');
+const { publishCommit } = require('@trustless-ai/agent-sdk');
 
 // event must already be SIGNED — the SDK never holds a key.
 const res = await publishCommit({
@@ -113,7 +113,7 @@ When a consumer wants the `valid` (signature) leg enforced **on-chain trusting n
 pack a signed event into the exact bytes its `verify()` consumes:
 
 ```js
-const { packReceiptProof } = require('@onchain-ai/agent-sdk');
+const { packReceiptProof } = require('@trustless-ai/agent-sdk');
 const receiptProof = packReceiptProof(signedEvent); // 0x abi.encode(px, rx, s, preimage)
 // escrow.release(jobId, receiptProof) → contract computes id = sha256(preimage), BIP-340-verifies,
 // and extracts artifact_hash from the SAME signed bytes. Off-chain verifyFullFlow() and on-chain

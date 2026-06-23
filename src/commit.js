@@ -1,4 +1,4 @@
-// @onchain-ai/agent-sdk — commit.js
+// @trustless-ai/agent-sdk — commit.js
 //
 // Build a commit-before-outcome event. The commit IS a signed kind-30078 Nostr event whose content
 // carries artifact_hash = a deterministic hash of the job spec. Because the spec (incl. the
@@ -62,11 +62,11 @@ function artifactHash(spec) {
  * @param {object} p.spec        e.g. { job_id, target_wallet, output_address, asset_set }
  * @param {string} p.pubkey      x-only hex of the signer
  * @param {string} p.judgmentType  e.g. "recovery_receipt" / "outcome_verifiable"
- * @param {string} [p.schema]    content.schema tag (default "onchain-ai.commit.v0")
+ * @param {string} [p.schema]    content.schema tag (default "trustless-ai.commit.v0")
  * @param {number} [p.createdAt] unix seconds; defaults to now. This is committed_at (pre-outcome).
  * @returns {{ event: object, id: string, artifact_hash: string }} event is unsigned (no `sig`).
  */
-function buildCommitEvent({ spec, pubkey, judgmentType, schema = 'onchain-ai.commit.v0', createdAt }) {
+function buildCommitEvent({ spec, pubkey, judgmentType, schema = 'trustless-ai.commit.v0', createdAt }) {
   if (!spec || typeof spec !== 'object') throw new Error('spec must be an object');
   if (!pubkey) throw new Error('pubkey required');
   const created_at = Number(createdAt || Math.floor(Date.now() / 1000));
