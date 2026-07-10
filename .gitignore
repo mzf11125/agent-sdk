@@ -1,2 +1,19 @@
+.omc/
+
+# Node / TypeScript
 node_modules/
-package-lock.json
+dist/
+
+# Python
+python/.venv/
+**/__pycache__/
+*.pyc
+*.egg-info/
+
+# Foundry
+testkit/out/
+testkit/cache/
+testkit/broadcast/
+testkit/.anvil.pid
+testkit/.anvil.log
+testkit/.anvil-accounts.json
