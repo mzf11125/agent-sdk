@@ -1,5 +1,5 @@
 {
-  "name": "agent-sdk",
+  "name": "@trustless-ai/agent-sdk",
   "version": "0.1.0",
   "type": "module",
   "files": [
