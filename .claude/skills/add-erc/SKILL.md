@@ -106,7 +106,9 @@ The output has two layers:
     - Populate the ERC module's `__init__.py` (`python/src/agent_sdk/<category>/<ercxxxx>/__init__.py`) with proper named imports and `__all__`. See `python/src/agent_sdk/identity/erc8004/__init__.py` for a single-client pattern or `python/src/agent_sdk/execution/erc8301/__init__.py` for a multi-client pattern. Do not leave it empty — it must export all public classes and functions.
     - Update the category-level `__init__.py` (`python/src/agent_sdk/<category>/__init__.py`) with a docstring-only or import-based entry if it doesn't reference the new ERC yet.
 
-11. **Run every new test to green** — first the recompute tests (offline, no anvil), then the full integration tests:
+11. **Update root README.** Append the new ERC to the "Supported ERCs" table in the repo root `README.md`. Match the existing row format: ERC name with link to agent-ercs, category, Contract Calls column (list client classes or `—`), Recompute column (list recompute functions or `—`). Insert in alphabetical order within its category.
+
+12. **Run every new test to green** — first the recompute tests (offline, no anvil), then the full integration tests:
     - `npx vitest run <recompute test path>` (Layer 2 — offline, no anvil needed)
     - `pytest <recompute test path>` (Layer 2 — offline, no anvil needed)
     - Start anvil (`testkit/scripts/start-anvil.sh`), then:

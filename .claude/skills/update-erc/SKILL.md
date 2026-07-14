@@ -62,9 +62,11 @@ Refresh SDK support for an ERC that `agent-sdk` already implements, after `agent
     - Update the ERC module's `__init__.py` (`python/src/agent_sdk/<category>/<ercxxxx>/__init__.py`) to export any new public classes or functions. If it doesn't exist yet, create it following the pattern in `python/src/agent_sdk/identity/erc8004/__init__.py`.
     - Update the category-level `__init__.py` if the new ERC isn't referenced there yet.
 
-10. **Amend the READMEs.** Append a dated entry to both existing `README.md` files (TS and Python) describing what changed and why, including any additions or changes to the recompute layer and exports. Amend, don't overwrite — the change history is part of the record.
+10. **Update root README.** If the ERC is newly supported (wasn't in the "Supported ERCs" table before), append it to the table in the repo root `README.md`. Match the existing row format: ERC name with link to agent-ercs, category, Contract Calls column (list client classes or `—`), Recompute column (list recompute functions or `—`). If the ERC already exists in the table, update its row to reflect any changes (new clients, new recompute functions). Insert or keep in alphabetical order within its category.
 
-11. **Run every affected test to green** — first the recompute tests (offline, no anvil), then the full integration tests:
+11. **Amend the per-ERC READMEs.** Append a dated entry to both existing `README.md` files (TS and Python) describing what changed and why, including any additions or changes to the recompute layer and exports. Amend, don't overwrite — the change history is part of the record.
+
+12. **Run every affected test to green** — first the recompute tests (offline, no anvil), then the full integration tests:
     - `npx vitest run <recompute test path>` (Layer 2 — offline, no anvil needed)
     - `pytest <recompute test path>` (Layer 2 — offline, no anvil needed)
     - Start anvil (`testkit/scripts/start-anvil.sh`), then:
