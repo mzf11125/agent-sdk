@@ -18,3 +18,15 @@ If `agent-ercs` publishes a base implementation that fixes this convention, revi
 - `ownerOf(agentId)` (standard ERC-721)
 
 Tests deploy `testkit`'s `MockIdentityRegistry` (a reference implementation for local testing only — see `agent-ercs`'s README on interface vs. base implementation vs. example/reference contracts) to a local `anvil` node and call through this client.
+
+## Layer 2 — Pure recompute (added 2026-07-14)
+
+**Pure recompute: YES (one function).**
+
+Even though ERC-8004 is NOT recompute-to-verify (the signing convention is unfixed), one trivial deterministic computation can be reproduced off-chain:
+
+- `computeAgentId(registryId)` — `agentId = bytes32(uint256(registryId))`, a left-padded zero-extension of the registry id (no hash).
+
+This lives in `recompute.ts` and is tested against golden conformance vectors from `recompute-kit/conformance/agent-flow.vectors.json` (step `8004/agent-id`). The recompute tests are pure function calls with no RPC, no anvil, and no deployed contract.
+
+See `recompute.ts` for the implementation and `test/identity/ERC8004/recompute.test.ts` for tests.

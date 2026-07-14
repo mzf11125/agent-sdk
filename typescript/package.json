@@ -1,8 +1,54 @@
 {
   "name": "agent-sdk",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
+  "files": [
+    "dist"
+  ],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./identity/ERC8004": {
+      "types": "./dist/identity/ERC8004/index.d.ts",
+      "default": "./dist/identity/ERC8004/index.js"
+    },
+    "./identity/ERC8004/recompute": {
+      "types": "./dist/identity/ERC8004/recompute.d.ts",
+      "default": "./dist/identity/ERC8004/recompute.js"
+    },
+    "./verify/ERC8274": {
+      "types": "./dist/verify/ERC8274/index.d.ts",
+      "default": "./dist/verify/ERC8274/index.js"
+    },
+    "./verify/ERC8299": {
+      "types": "./dist/verify/ERC8299/index.d.ts",
+      "default": "./dist/verify/ERC8299/index.js"
+    },
+    "./verify/ERC8299/recompute": {
+      "types": "./dist/verify/ERC8299/recompute.d.ts",
+      "default": "./dist/verify/ERC8299/recompute.js"
+    },
+    "./execution/ERC8301": {
+      "types": "./dist/execution/ERC8301/index.d.ts",
+      "default": "./dist/execution/ERC8301/index.js"
+    },
+    "./execution/ERC8301/recompute": {
+      "types": "./dist/execution/ERC8301/recompute.d.ts",
+      "default": "./dist/execution/ERC8301/recompute.js"
+    },
+    "./settlement/ERC8203": {
+      "types": "./dist/settlement/ERC8203/index.d.ts",
+      "default": "./dist/settlement/ERC8203/index.js"
+    },
+    "./settlement/ERC8203/recompute": {
+      "types": "./dist/settlement/ERC8203/recompute.d.ts",
+      "default": "./dist/settlement/ERC8203/recompute.js"
+    }
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "vitest run"

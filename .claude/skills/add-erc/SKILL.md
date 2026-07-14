@@ -1,11 +1,15 @@
 ---
 name: add-erc
-description: Generate TypeScript and Python SDK clients for an ERC defined in agent-ercs that doesn't have SDK support yet, including a recompute-to-verify classification and tests run against a local anvil deployment.
+description: Generate TypeScript and Python SDK clients for an ERC defined in agent-ercs that doesn't have SDK support yet, including a recompute-to-verify classification, pure recompute functions (Layer 2), and tests run against golden conformance vectors (offline) then a local anvil deployment.
 ---
 
 # Add ERC
 
 Generate off-chain client support for one ERC that `agent-sdk` doesn't yet implement.
+
+The output has two layers:
+- **Layer 1** — contract wrappers: `client.ts` / `client.py` that call the on-chain contract via an RPC node (read/send/verify).
+- **Layer 2** — pure recompute: `recompute.ts` / `recompute.py` with stateless functions that reproduce the ERC's deterministic computations from public inputs, verified against golden conformance vectors without requiring any blockchain node.
 
 ## Process
 
@@ -17,20 +21,100 @@ Generate off-chain client support for one ERC that `agent-sdk` doesn't yet imple
    - See `typescript/src/identity/ERC8004/README.md` for a clean NOT-verifiable case: the interface leaves a signing convention completely unfixed, so there's nothing a generic SDK can check at all.
    - See `typescript/src/verify/ERC8274/README.md` for a split verdict on one ERC: the core validity check *is* recompute-to-verify (anyone can call the deployed, immutable verifier contract themselves and get an authoritative answer — that's a real instance of recompute-to-verify, not "just asking the same contract again"), while a separate derived value (an audit-trail digest) is NOT, because one of its inputs isn't exposed anywhere in the interface. Don't let one claim's verdict force the other's.
 
-4. **Propose the client API.** Based on the interface and the classification, propose the method list for both languages — including whether a `verify()` method is warranted — and get the user's approval before writing any code.
+4. **Identify pure recompute functions (Layer 2).** For each claim the ERC makes, identify whether it involves a deterministic computation that can be reproduced off-chain from public inputs as a pure mathematical function. This is SEPARATE from the recompute-to-verify classification in step 3:
+   - **recompute-to-verify** (step 3): can a caller *independently verify* a claim by calling a contract or recomputing it? The verdict can be YES, NO, or SPLIT.
+   - **pure recompute** (this step): is there a *mathematical function* that anyone can compute from public inputs to derive the expected output? The answer is a list of functions, regardless of whether the overall verdict is verifiable.
+   
+   An ERC can have pure recompute functions even if its overall verdict is NOT verifiable. For example, ERC-8004 is NOT recompute-to-verify (its signing convention is unfixed), but `agentId = bytes32(uint256(registryId))` is a pure recompute function — anyone can compute it from the registry ID.
 
-5. **Write the per-ERC READMEs.** Under both `typescript/src/<category>/<ERCXXXX>/README.md` and `python/src/agent_sdk/<category>/<ercxxxx>/README.md` (lowercase ERC segment for Python), record the verdict, its rationale, and the API summary.
+   Examples of pure recompute from existing conformance vectors:
+   - ERC-8004: `agentId = bytes32(uint256(registryId))` — left-padded, no hash (`step: "8004/agent-id"`)
+   - ERC-8299: `raw_input_hash = keccak256(raw_user_input)` (`step: "wyriwe/raw"`)
+   - ERC-8299: `sanitization_pipeline_hash = keccak256(utf8(cid) \|\| raw_input_hash)` (`step: "wyriwe/pipeline"`)
+   - ERC-8301: `taskHash = keccak256(abi.encode(stage, taskSeq, inputHash, timestamp, expiresAt, innerHash, workflowRunId))` (`step: "8301/task-hash"`)
+   - Scope-contestation: `scopeRoot = keccak256(abi.encode(merkleRoot, count))` (`step: "scope/binding"`)
+   - ENS: `namehash(name)` per EIP-137 (`step: "ens/namehash"`)
+   - ERC-8275: `winRate = gated_wins / (gated_wins + gated_losses)` (`step: "8275/reputation"`)
+   - ERC-8203: `verdictHash = keccak256(abi.encode(jobId, keccak256(utf8(resultText))))` (`step: "8203/settlement-proof"`)
+   - Scope-contestation bond: "standing" computed from public bond state (`step: "scope/bond-standing"`)
+   - Scope-contestation: resolution root from sorted votes (`step: "scope/value-fidelity"`)
+   - Scope-contestation: materiality contest check (`step: "scope/contest-verify"`)
+   - ERC-8312: cap conservation invariant (`step: "8312/cap-conservation"`)
 
-6. **Implement.** For each language:
+   Read the conformance vectors at `/Users/shakku/code/recompute-kit/conformance/agent-flow.vectors.json` — they are the source of truth for what pure recompute functions exist. Each vector has a `step` field identifying the computation and `inputs`/`expected` for testing. Cross-reference steps with the ERC's claims.
+
+   If pure recompute functions exist, add them to the proposed API in step 5. Propose one function per distinct computation, each documented with the ERC section it comes from. Don't bundle unrelated computations into one function.
+
+5. **Propose the client API (both layers).** Based on the interface, the classification (step 3), and the identified pure recompute functions (step 4), propose the method list for both languages — including whether a `verify()` method is warranted for Layer 1 and which recompute functions are exposed for Layer 2 — and get the user's approval before writing any code.
+
+6. **Write the per-ERC READMEs.** Under both `typescript/src/<category>/<ERCXXXX>/README.md` and `python/src/agent_sdk/<category>/<ercxxxx>/README.md` (lowercase ERC segment for Python), record the verdict, its rationale, the API summary (both layers), and whether pure recompute functions exist.
+
+7. **Implement Layer 2 (pure recompute) — offline, no contract needed.** For each language, generate:
+
+   **a) `recompute.ts` / `recompute.py`:**
+   - Pure stateless functions, each documented with the ERC section it comes from.
+   - TypeScript: import each utility as a named import from `'viem'` (top-level package), never from deep paths like `'viem/utils'`. Use these and similar pure utilities: `keccak256`, `encodeAbiParameters`, `concat`, `stringToHex`, `toHex`, `namehash`, `bytesToHex`, `hexToBytes`. NO dependency on contract clients, ABIs, viem chains, or deployed addresses.
+   - Python: import only from `eth_utils` or `web3.py` equivalents (e.g. `Web3.keccak`, `eth_utils.keccak`, `eth_utils.to_bytes`, `eth_utils.to_hex`). Use `eth_utils.keccak` for hash computations — it's the standard pattern in this project. Avoid `eth_hash` unless it is a declared dependency in `pyproject.toml`. NO dependency on `web3.eth.contract` or RPC. If a computation is trivial (e.g. integer-to-bytes32 padding), pure Python without dependencies is acceptable.
+   - Each function signature: clear input types (native JS/Python types, not ABI-encoded blobs) -> deterministic output. Accept `Hex` (0x-prefixed strings) for hash inputs, `number`/`bigint` for integers, `boolean` for booleans, strings for text.
+   - Naming convention: TypeScript uses camelCase parameter names (matching Solidity event/function parameter style); Python uses snake_case. Export all functions as named exports. Do not wrap them in a class — they are pure module-level functions.
+   - Include a JSDoc/docstring comment on each function describing what it computes and referencing the ERC section (e.g. `// ERC-8299 §45: raw_input_hash = keccak256(raw_user_input)`).
+
+   **b) `recompute.test.ts` / `test_recompute.py`:**
+   - Read golden vectors from `recompute-kit/conformance/agent-flow.vectors.json`. Use a relative path from the test file — either resolve via a symlink or compute relative to the repo root. The path to look for: `../../../../../recompute-kit/conformance/agent-flow.vectors.json` from the TypeScript test directory, or an equivalent relative path from Python.
+   - For each vector whose `step` matches one of the recompute functions in this ERC, assert `recomputeFn(inputs) === expected`.
+   - Test each conformance-file vector individually, not all vectors inside one test function. TypeScript: one `it(...)` per vector. Python: one parametrized test method per vector using `@pytest.mark.parametrize`.
+   - Also write a self-contained inline golden vector test (duplicate the vector's inputs and expected values directly in the test file) so tests work even when recompute-kit is not present on disk or the vectors file is unreachable. This inline test is the primary assertion; the file-based reader is a secondary conformance check that vectors haven't drifted.
+   - When recompute-kit vectors are not found on disk, use a guard clause / early return pattern: check existence at the top and return/skip immediately, rather than wrapping the bulk of the test logic inside an `if (vectors.length)` branch.
+   - Generate an empty `__init__.py` in any new Python test directory (e.g. `python/tests/<category>/<ercxxxx>/__init__.py`) to match sibling ERC test directory patterns.
+   - Tests must run without any deployed contract, anvil node, or RPC connection — pure function calls only.
+   - TypeScript: use `vitest`. Python: use `pytest`.
+   - Cover both happy path (inputs produce expected output) and edge cases where applicable. Edge-case checklist by operation type:
+
+     | Operation | Edge cases to test |
+     |---|---|
+     | `toHex` / zero-padding | zero, one, max value within bytes32 (2^248-1) |
+     | `keccak256` | empty input (`0x`), known short input (1 byte), longer input (32+ bytes), verify against a known golden hash |
+     | `abi.encode` / `encodeAbiParameters` | single-argument, multi-argument, each type combination (uint, bytes32, address, tuple/bool — note Solidity encodes booleans as uint8) |
+     | `concat` | empty first segment, empty second segment, both empty, multi-segment |
+     | `namehash` | single-label (TLD), two-label (`name.eth`), three-label (`sub.name.eth`) |
+     | Boolean / invariant checks | true/truthy and false/falsy cases |
+
+   **c) Post-generation cleanup:** After writing all recompute files, scan each file for unused imports and remove them before finalizing. Generated code should be clean on arrival — no dangling imports from copy-paste or removed computations.
+
+8. **Run the recompute tests separately first.** Before touching any contract infrastructure, run `npx vitest run <path-to-recompute.test.ts>` (TS) and `pytest <path-to-test_recompute.py>` (Python). These must pass without any blockchain node. If they fail, debug the recompute implementation before proceeding to Layer 1.
+
+9. **Implement Layer 1 (contract wrappers).**
    - Hand-write the ABI fragment for the functions/events the client uses, matching the interface exactly (no dynamic codegen from build artifacts).
+   - Before writing the client, check existing ERC clients in the SAME category (identity, verify, etc.) for wallet and constructor patterns and match them. Specifically:
+     * WalletClient: use the `createWalletClient({ chain: foundry, transport, account })` pattern (see ERC-8004, ERC-8274) — don't invent `{ account }` plain objects or other ad-hoc patterns.
+     * Constructor: match the existing `(config, account)` signature pattern.
    - Implement the client, following the shape and conventions of `typescript/src/identity/ERC8004/client.ts` / `python/src/agent_sdk/identity/erc8004/client.py` for a single-contract ERC, or `typescript/src/verify/ERC8274/*Client.ts` / `python/src/agent_sdk/verify/erc8274/client.py` for an ERC that's really several interfaces meant to be deployed as separate, cross-referencing contracts — don't force a multi-contract ERC into one client class. For a claim classified as recompute-to-verify (a deterministic, callable-by-anyone check), expose it as a read-only simulated call/`.call()` rather than a broadcast transaction — nobody should need to spend gas or hold a funded key just to check something.
    - If the ERC needs a contract to deploy for testing and `agent-ercs` has no base implementation yet, write a minimal reference implementation under `testkit/contracts/mocks/<category>/<ERCXXXX>/` (one file per contract if the ERC needs more than one), clearly commented as local-testing-only (see `MockIdentityRegistry.sol` for a single-contract pattern, `MockProofVerifier.sol`/`MockAgentVerifier.sol`/`MockAgentVerifiable.sol` for a multi-contract one), plus a Foundry unit test for it/them under `testkit/test/<category>/<ERCXXXX>/`.
    - Write `testkit/script/<category>/<ERCXXXX>/Deploy<ERCXXXX>.s.sol` (file basename must match its contract name, e.g. `DeployERC8301.s.sol` containing `contract DeployERC8301` — Foundry keys broadcast artifacts by script basename only, so reusing a generic name like `Deploy.s.sol` across ERCs would collide). If the ERC needs several wired-together contracts, deploy all of them in one script (constructor-inject each into the next) — `testkit/scripts/deploy.sh` prints one address per line in the order each was deployed; use `deployContracts()`/`deploy_contracts()` (plural, returning the full list) instead of the single-address `deployContract()`/`deploy_contract()` to receive all of them (see `typescript/test/verify/ERC8274/erc.test.ts` / `python/tests/verify/erc8274/test_erc.py`).
    - Write tests for both languages that deploy via `testkit/scripts/deploy.sh` (see `typescript/test/identity/ERC8004/erc.test.ts` and `python/tests/identity/erc8004/test_erc.py` for the single-contract wiring pattern, or the ERC-8274 test files above for multi-contract) and call the client's methods. For any claim classified as recompute-to-verify, also test that the check rejects tampered/incorrect data (a bad proof, a bad signature) — some checks reject by returning a falsy result rather than reverting; assert whichever the contract actually does, don't assume a revert.
    - If double-checking a byte-encoding assumption against the actual Solidity (e.g. whether a hash was built with `abi.encode` vs `abi.encodePacked` — they differ for `bool` and other non-32-byte-aligned types), verify it against the real contract rather than assuming the two are interchangeable.
 
-7. **Run every new test to green** (`forge test`, `npm test`, `pytest`) before considering the ERC done. If more than one ERC's tests now exist for a language, run that language's *full* suite, not just the new files in isolation — shared test infrastructure (like one anvil instance and deployer account across all ERCs) can only reveal cross-file issues, such as a nonce race from parallel test execution, when everything runs together.
+10. **Wire up package exports.** After both layers are implemented, register the new ERC in the package's public API so consumers can import it.
+
+    **TypeScript:**
+    - Create a barrel `index.ts` in the ERC directory (`typescript/src/<category>/<ERCXXXX>/index.ts`) that re-exports the client class(es), recompute functions, and any public types. Use named re-exports. See `typescript/src/identity/ERC8004/index.ts` for the single-client pattern or `typescript/src/execution/ERC8301/index.ts` for a multi-client pattern.
+    - Add subpath exports to `typescript/package.json` in the `"exports"` field, in the same alphabetical order as existing entries:
+      * Full-entry: `"./<category>/<ERCXXXX>": { "types": "./dist/<category>/<ERCXXXX>/index.d.ts", "default": "./dist/<category>/<ERCXXXX>/index.js" }`
+      * Recompute-only (if recompute functions exist): `"./<category>/<ERCXXXX>/recompute": { "types": "./dist/<category>/<ERCXXXX>/recompute.d.ts", "default": "./dist/<category>/<ERCXXXX>/recompute.js" }`
+
+    **Python:**
+    - Populate the ERC module's `__init__.py` (`python/src/agent_sdk/<category>/<ercxxxx>/__init__.py`) with proper named imports and `__all__`. See `python/src/agent_sdk/identity/erc8004/__init__.py` for a single-client pattern or `python/src/agent_sdk/execution/erc8301/__init__.py` for a multi-client pattern. Do not leave it empty — it must export all public classes and functions.
+    - Update the category-level `__init__.py` (`python/src/agent_sdk/<category>/__init__.py`) with a docstring-only or import-based entry if it doesn't reference the new ERC yet.
+
+11. **Run every new test to green** — first the recompute tests (offline, no anvil), then the full integration tests:
+    - `npx vitest run <recompute test path>` (Layer 2 — offline, no anvil needed)
+    - `pytest <recompute test path>` (Layer 2 — offline, no anvil needed)
+    - Start anvil (`testkit/scripts/start-anvil.sh`), then:
+    - `npx vitest run` (Layer 1 integration tests + any other TS tests)
+    - `pytest` (Layer 1 integration tests + any other Python tests)
+    - If more than one ERC's tests now exist for a language, run that language's *full* suite, not just the new files in isolation — shared test infrastructure (one anvil instance and deployer account across all ERCs) can only reveal cross-file issues, such as a nonce race from parallel test execution, when everything runs together.
+    - Stop anvil (`testkit/scripts/stop-anvil.sh`) when done.
 
 ## What gets committed
 
-Only the final READMEs, client code, and tests. Discussion during steps 1–4 is scratch and is not committed.
+Only the final READMEs, recompute layer (recompute.ts, recompute.py, recompute tests), client code (client.ts, client.py, contract wrappers tests), barrel files (index.ts, __init__.py), and package.json exports. Discussion during the early steps is scratch and is not committed.
