@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { readFileSync, existsSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { computeWinRate } from '../../../src/settlement/ERC8275/recompute.js'
+import { computeWinRate } from '../../../src/reputation/ERC8275/recompute.js'
 
 // ── Inline golden vectors (primary) ──────────────────────────────────────
 // These reproduce the vectors from recompute-kit/conformance/agent-flow.vectors.json

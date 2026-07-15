@@ -47,6 +47,14 @@
     "./settlement/ERC8203/recompute": {
       "types": "./dist/settlement/ERC8203/recompute.d.ts",
       "default": "./dist/settlement/ERC8203/recompute.js"
+    },
+    "./reputation/ERC8275": {
+      "types": "./dist/reputation/ERC8275/index.d.ts",
+      "default": "./dist/reputation/ERC8275/index.js"
+    },
+    "./reputation/ERC8275/recompute": {
+      "types": "./dist/reputation/ERC8275/recompute.d.ts",
+      "default": "./dist/reputation/ERC8275/recompute.js"
     }
   },
   "scripts": {

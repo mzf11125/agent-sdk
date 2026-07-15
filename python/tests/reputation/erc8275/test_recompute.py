@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from agent_sdk.settlement.erc8275.recompute import compute_win_rate
+from agent_sdk.reputation.erc8275.recompute import compute_win_rate
 
 # ── Inline golden vectors (primary) ──────────────────────────────────────
 # These reproduce the vectors from recompute-kit/conformance/agent-flow.vectors.json

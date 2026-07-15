@@ -3,7 +3,7 @@
 	url = https://github.com/trustless-ai/agent-ercs.git
 [submodule "testkit/lib/forge-std"]
 	path = testkit/lib/forge-std
-	url = https://github.com/foundry-rs/forge-std.git
+	url = https://github.com/foundry-rs/forge-std
 [submodule "testkit/lib/openzeppelin-contracts"]
 	path = testkit/lib/openzeppelin-contracts
-	url = https://github.com/OpenZeppelin/openzeppelin-contracts.git
+	url = https://github.com/OpenZeppelin/openzeppelin-contracts
