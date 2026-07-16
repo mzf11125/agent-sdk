@@ -39,20 +39,71 @@ class IdentityRegistryClient:
             raise RuntimeError("register: Registered event not found in transaction receipt")
         return registered_events[0]["args"]["agentId"]
 
-    def register_with_source(self, source_token_id: int) -> int:
+    def register_with_source(self, source_token_id: int, value: int = 0) -> int:
         """ERC-8323 (Source-Token Agent Binding) — mints an agent bound to
-        ``source_token_id`` on this registry's fixed source collection. Only
-        the single spec-defined overload (``registerWithSource(uint256)``)
-        is bound here; a registry MAY expose additional overloads (payable
-        amounts, inline metadata, etc.) not covered by the base ERC-8323
-        interface — those need their own client method once their exact
-        signature is known, not guessed.
+        ``source_token_id`` on this registry's fixed source collection. This
+        is the single spec-defined overload (``registerWithSource(uint256)``);
+        a registry MAY require payment (the ABI marks it ``payable``) --
+        pass ``value`` (wei) if the deployment enforces a mint price, omit
+        it (defaults to 0) for a free registry like this repo's own
+        MockSourceBindingRegistry. Two deployment-specific extension
+        overloads exist below (``register_with_source_and_uri`` /
+        ``register_with_source_and_metadata``) for registries known to
+        expose them (confirmed on Merlini's AgentIdentityRegistry,
+        2026-07-16) -- NOT part of the ERC-8323 base interface, don't
+        assume a given registry has them.
         """
-        tx_hash = self._contract.functions.registerWithSource(source_token_id).transact()
+        tx_hash = self._contract.functions.registerWithSource(source_token_id).transact({"value": value})
         receipt = self._w3.eth.wait_for_transaction_receipt(tx_hash)
         linked_events = self._contract.events.SourceNFTLinked().process_receipt(receipt, errors=DISCARD)
         if not linked_events:
             raise RuntimeError("register_with_source: SourceNFTLinked event not found in transaction receipt")
+        return linked_events[0]["args"]["agentId"]
+
+    def register_with_source_and_uri(
+        self, agent_uri: str, source_token_id: int, value: int = 0
+    ) -> int:
+        """Deployment-specific extension of register_with_source (NOT
+        ERC-8323 base spec) that lets the caller override the minted
+        agent's URI instead of the registry's baseAgentURI template.
+        Confirmed live on Merlini's AgentIdentityRegistry (mainnet
+        0xe0454dfa17a57a84c3e0e2dbfda5318cbbe91e2c, 2026-07-16 Telegram) --
+        only call this against a registry known to implement the exact same
+        overload; a bare ERC-8323 registry does not have to expose it.
+        """
+        fn = self._contract.get_function_by_signature("registerWithSource(string,uint256)")
+        tx_hash = fn(agent_uri, source_token_id).transact({"value": value})
+        receipt = self._w3.eth.wait_for_transaction_receipt(tx_hash)
+        linked_events = self._contract.events.SourceNFTLinked().process_receipt(receipt, errors=DISCARD)
+        if not linked_events:
+            raise RuntimeError(
+                "register_with_source_and_uri: SourceNFTLinked event not found in transaction receipt"
+            )
+        return linked_events[0]["args"]["agentId"]
+
+    def register_with_source_and_metadata(
+        self,
+        agent_uri: str,
+        source_token_id: int,
+        metadata: list[MetadataEntry] | None = None,
+        value: int = 0,
+    ) -> int:
+        """Deployment-specific extension of register_with_source (NOT
+        ERC-8323 base spec) that seeds initial metadata entries at
+        registration time, on top of the custom-URI overload above. Same
+        provenance/caveat as register_with_source_and_uri.
+        """
+        metadata_tuples = [(entry.metadata_key, entry.metadata_value) for entry in (metadata or [])]
+        fn = self._contract.get_function_by_signature(
+            "registerWithSource(string,uint256,(string,bytes)[])"
+        )
+        tx_hash = fn(agent_uri, source_token_id, metadata_tuples).transact({"value": value})
+        receipt = self._w3.eth.wait_for_transaction_receipt(tx_hash)
+        linked_events = self._contract.events.SourceNFTLinked().process_receipt(receipt, errors=DISCARD)
+        if not linked_events:
+            raise RuntimeError(
+                "register_with_source_and_metadata: SourceNFTLinked event not found in transaction receipt"
+            )
         return linked_events[0]["args"]["agentId"]
 
     def set_agent_uri(self, agent_id: int, agent_uri: str) -> None:

@@ -38,18 +38,64 @@ export class IdentityRegistryClient {
 
   /**
    * ERC-8323 (Source-Token Agent Binding) — mints an agent bound to
-   * `sourceTokenId` on this registry's fixed source collection. Only the
-   * single spec-defined overload (`registerWithSource(uint256)`) is bound
-   * here; a registry MAY expose additional overloads (payable amounts,
-   * inline metadata, etc.) not covered by the base ERC-8323 interface —
-   * those need their own client method once their exact signature is known,
-   * not guessed.
+   * `sourceTokenId` on this registry's fixed source collection. This is the
+   * single spec-defined overload (`registerWithSource(uint256)`); a
+   * registry MAY require payment (the ABI marks it `payable`) — pass
+   * `value` if the deployment enforces a mint price, omit it (defaults to
+   * 0) for a free registry like this repo's own MockSourceBindingRegistry.
+   * Two deployment-specific extension overloads exist below
+   * (`registerWithSourceAndURI` / `registerWithSourceAndMetadata`) for
+   * registries known to expose them (confirmed on Merlini's
+   * AgentIdentityRegistry, 2026-07-16) — NOT part of the ERC-8323 base
+   * interface, don't assume a given registry has them.
    */
-  async registerWithSource(sourceTokenId: bigint): Promise<bigint> {
-    const receipt = await this.send('registerWithSource', [sourceTokenId])
+  async registerWithSource(sourceTokenId: bigint, value: bigint = 0n): Promise<bigint> {
+    const receipt = await this.send('registerWithSource', [sourceTokenId], value)
     const decoded = parseEventLogs({ abi: this.abi, logs: receipt.logs, eventName: 'SourceNFTLinked' })
     if (decoded.length === 0) {
       throw new Error('registerWithSource: SourceNFTLinked event not found in transaction receipt')
+    }
+    return decoded[0].args.agentId as bigint
+  }
+
+  /**
+   * Deployment-specific extension of registerWithSource (NOT ERC-8323 base
+   * spec) that lets the caller override the minted agent's URI instead of
+   * the registry's baseAgentURI template. Confirmed live on Merlini's
+   * AgentIdentityRegistry (mainnet 0xe0454dfa17a57a84c3e0e2dbfda5318cbbe91e2c,
+   * 2026-07-16 Telegram) — only call this against a registry known to
+   * implement the exact same overload; a bare ERC-8323 registry does not
+   * have to expose it.
+   */
+  async registerWithSourceAndURI(
+    agentURI: string,
+    sourceTokenId: bigint,
+    value: bigint = 0n,
+  ): Promise<bigint> {
+    const receipt = await this.send('registerWithSource', [agentURI, sourceTokenId], value)
+    const decoded = parseEventLogs({ abi: this.abi, logs: receipt.logs, eventName: 'SourceNFTLinked' })
+    if (decoded.length === 0) {
+      throw new Error('registerWithSourceAndURI: SourceNFTLinked event not found in transaction receipt')
+    }
+    return decoded[0].args.agentId as bigint
+  }
+
+  /**
+   * Deployment-specific extension of registerWithSource (NOT ERC-8323 base
+   * spec) that seeds initial metadata entries at registration time, on top
+   * of the custom-URI overload above. Same provenance/caveat as
+   * `registerWithSourceAndURI`.
+   */
+  async registerWithSourceAndMetadata(
+    agentURI: string,
+    sourceTokenId: bigint,
+    metadata: MetadataEntry[],
+    value: bigint = 0n,
+  ): Promise<bigint> {
+    const receipt = await this.send('registerWithSource', [agentURI, sourceTokenId, metadata], value)
+    const decoded = parseEventLogs({ abi: this.abi, logs: receipt.logs, eventName: 'SourceNFTLinked' })
+    if (decoded.length === 0) {
+      throw new Error('registerWithSourceAndMetadata: SourceNFTLinked event not found in transaction receipt')
     }
     return decoded[0].args.agentId as bigint
   }
@@ -95,12 +141,13 @@ export class IdentityRegistryClient {
     } as never) as Promise<T>
   }
 
-  private async send(functionName: string, args: unknown[]): Promise<TransactionReceipt> {
+  private async send(functionName: string, args: unknown[], value: bigint = 0n): Promise<TransactionReceipt> {
     const { request } = await this.publicClient.simulateContract({
       address: this.address,
       abi: this.abi,
       functionName,
       args,
+      value,
       account: this.walletClient.account,
     } as never)
     const hash = await this.walletClient.writeContract(request as never)

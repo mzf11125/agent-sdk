@@ -108,6 +108,39 @@ IDENTITY_REGISTRY_ABI = [
         "inputs": [{"name": "sourceTokenId", "type": "uint256"}],
         "outputs": [{"name": "agentId", "type": "uint256"}],
     },
+    # The next two are NOT part of the ERC-8323 base interface -- deployment-
+    # specific convenience overloads confirmed live on Merlini's
+    # AgentIdentityRegistry (mainnet 0xe0454dfa17a57a84c3e0e2dbfda5318cbbe91e2c,
+    # 2026-07-16 Telegram, verified signatures not guessed). Only call these
+    # against a registry known to implement this exact extended surface.
+    {
+        "type": "function",
+        "name": "registerWithSource",
+        "stateMutability": "payable",
+        "inputs": [
+            {"name": "agentURI", "type": "string"},
+            {"name": "sourceTokenId", "type": "uint256"},
+        ],
+        "outputs": [{"name": "agentId", "type": "uint256"}],
+    },
+    {
+        "type": "function",
+        "name": "registerWithSource",
+        "stateMutability": "payable",
+        "inputs": [
+            {"name": "agentURI", "type": "string"},
+            {"name": "sourceTokenId", "type": "uint256"},
+            {
+                "name": "metadata",
+                "type": "tuple[]",
+                "components": [
+                    {"name": "metadataKey", "type": "string"},
+                    {"name": "metadataValue", "type": "bytes"},
+                ],
+            },
+        ],
+        "outputs": [{"name": "agentId", "type": "uint256"}],
+    },
     {
         "type": "event",
         "name": "SourceNFTLinked",
