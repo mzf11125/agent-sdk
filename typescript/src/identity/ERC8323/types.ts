@@ -1,6 +1,6 @@
 import type { Address } from 'viem'
 
-export interface SourceBindingViewClientConfig {
+export interface SourceBindingClientConfig {
   rpcUrl: string
   address: Address
 }

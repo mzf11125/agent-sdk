@@ -1,13 +1,13 @@
-"""ERC-8323: Source-Token Agent Binding (view side)."""
+"""ERC-8323: Source-Token Agent Binding."""
 
 from .client import (
-    SOURCE_BINDING_VIEW_INTERFACE_ID,
-    SourceBindingViewClient,
+    SOURCE_BINDING_INTERFACE_ID,
+    SourceBindingClient,
     SourceNFT,
 )
 
 __all__ = [
-    "SourceBindingViewClient",
+    "SourceBindingClient",
     "SourceNFT",
-    "SOURCE_BINDING_VIEW_INTERFACE_ID",
+    "SOURCE_BINDING_INTERFACE_ID",
 ]

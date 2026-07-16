@@ -52,9 +52,21 @@
       "types": "./dist/reputation/ERC8275/index.d.ts",
       "default": "./dist/reputation/ERC8275/index.js"
     },
+    "./identity/ERC8323": {
+      "types": "./dist/identity/ERC8323/index.d.ts",
+      "default": "./dist/identity/ERC8323/index.js"
+    },
     "./reputation/ERC8275/recompute": {
       "types": "./dist/reputation/ERC8275/recompute.d.ts",
       "default": "./dist/reputation/ERC8275/recompute.js"
+    },
+    "./verify/ERC8281": {
+      "types": "./dist/verify/ERC8281/index.d.ts",
+      "default": "./dist/verify/ERC8281/index.js"
+    },
+    "./verify/ERC8281/recompute": {
+      "types": "./dist/verify/ERC8281/recompute.d.ts",
+      "default": "./dist/verify/ERC8281/recompute.js"
     }
   },
   "scripts": {

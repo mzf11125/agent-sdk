@@ -22,7 +22,9 @@ Off-chain SDKs (TypeScript, Python) for the ERCs defined in [trustless-ai/agent-
 | ERC | Category | Contract Calls | Recompute |
 |-----|----------|----------------|-----------|
 | [ERC-8004](https://github.com/trustless-ai/agent-ercs/tree/main/contracts/identity/ERC8004) — Identity Registry | `identity` | `IdentityRegistryClient` | `computeAgentId` |
+| [ERC-8323](https://github.com/trustless-ai/agent-ercs/tree/main/contracts/identity/ERC8323) — Source-Token Agent Binding | `identity` | `SourceBindingClient` | — |
 | [ERC-8274](https://github.com/trustless-ai/agent-ercs/tree/main/contracts/verify/ERC8274) — AI Inference Proof | `verify` | `ProofVerifierClient`, `AgentVerifierClient`, `getTrustedVerifier` | — |
+| [ERC-8281](https://github.com/trustless-ai/agent-ercs/tree/main/contracts/verify/ERC8281) — Observation Commitment Protocol (OCP) | `verify` | `ObservationCommitmentClient` | `computeObservationDigest` |
 | [ERC-8299](https://github.com/trustless-ai/agent-ercs/tree/main/contracts/verify/ERC8299) — WYRIWE Input Provenance | `verify` | `WyriweAttestationClient`, `JudgmentExecutionClient` | `computeRawInputHash`, `computeSanitizationPipelineHash` |
 | [ERC-8301](https://github.com/trustless-ai/agent-ercs/tree/main/contracts/execution/ERC8301) — Agent Execution | `execution` | `AgentWorkflowClient` | `computeTaskHash`, `computeReplyHash` |
 | [ERC-8203](https://github.com/trustless-ai/agent-ercs/tree/main/contracts/settlement/ERC8203) — Consult Escrow | `settlement` | `ConsultEscrowClient` | `computeVerdictHash` |

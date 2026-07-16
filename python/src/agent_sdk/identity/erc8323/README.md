@@ -1,37 +1,32 @@
-# ERC-8323 — Source-Token Agent Binding (view side)
+# ERC-8323 — Source-Token Agent Binding
 
-Client bindings for `IAgentSourceBindingView` (ERC-165 id **`0x8b3597c9`**) — the
-query-only subset of source-binding that a self-sourced ("genesis") agent honestly
-implements. It exposes the *read* side (which source NFT an agent is bound to, and
-whether that binding is currently valid) without the bridge methods
-(`boundCollection` / `registerWithSource`) of the full `IAgentSourceBinding`
-(`0x27eba962`).
+Client bindings for `IAgentSourceBinding` (ERC-165 id **`0x27eba962`**). Exposes
+both the *read* side (which source NFT an agent is bound to, and whether that
+binding is currently valid) and the *write* side (registering a new agent from
+a source token in the bound collection).
 
 ## API
 
-### `SourceBindingViewClient`
+### `SourceBindingClient`
+
+Requires a `LocalAccount` for transaction signing. View methods work over the
+public client; write methods (`register`) broadcast via the signing middleware.
 
 | Method | Description | State |
 | --- | --- | --- |
-| `getSourceNFT(agentId)` | The `(sourceContract, sourceTokenId)` the agent is bound to | read |
-| `hasSourceNFT(agentId)` | Whether the agent claims a source NFT | read |
-| `isSourceNFTOwnershipValid(agentId)` | Whether the bound NFT is still owned by the agent's controller | read |
-| `supportsSourceBindingView()` | ERC-165 check for `0x8b3597c9` | read |
+| `bound_collection()` | The source ERC-721 collection this registry is bound to | read |
+| `get_source_nft(agent_id)` | The `(source_contract, source_token_id)` the agent is bound to | read |
+| `has_source_nft(agent_id)` | Whether the agent claims a source NFT | read |
+| `is_source_nft_ownership_valid(agent_id)` | Whether the bound NFT is still owned by the agent's controller | read |
+| `register(source_token_id)` | Register an agent from `source_token_id` in the bound collection | write |
+| `supports_source_binding()` | ERC-165 check for `0x27eba962` | read |
 
-`SOURCE_BINDING_VIEW_INTERFACE_ID` (`0x8b3597c9`) is exported for direct ERC-165
+`SOURCE_BINDING_INTERFACE_ID` (`0x27eba962`) is exported for direct ERC-165
 checks.
 
 ## No Layer-2 recompute
 
-Unlike the hash-based ERCs (8299, 8301, 8203, …), source binding is an **on-chain
-fact** — the registry stores `agentId → source NFT` and validates current ownership
-on read. Verification is therefore a direct `getSourceNFT` / `isSourceNFTOwnershipValid`
+Unlike the hash-based ERCs (8299, 8301, 8203, ...), source binding is an **on-chain
+fact** — the registry stores `agentId -> source NFT` and validates current ownership
+on read. Verification is therefore a direct `get_source_nft` / `is_source_nft_ownership_valid`
 call, not an off-chain hash re-derivation, so there is no `recompute` module here.
-
-## Notes
-
-- The reference implementation is `GenesisAgentRegistry` in `ens-dynamic-kit`
-  (self-sourced agents) and `AgentIdentityRegistry` (source-bound agents), both of
-  which use a **uint256 `agentId`** (ERC-721 tokenId) per-collection registry model.
-- Integration tests need a deployed registry in the testkit; a `GenesisAgentRegistry`
-  fixture is the natural fit.

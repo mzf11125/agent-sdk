@@ -1,24 +1,27 @@
-# ERC-8323 — Source-Token Agent Binding (view side)
+# ERC-8323 — Source-Token Agent Binding
 
-Client bindings for `IAgentSourceBindingView` (ERC-165 id **`0x8b3597c9`**) — the
-query-only subset of source-binding that a self-sourced ("genesis") agent honestly
-implements. It exposes the *read* side (which source NFT an agent is bound to, and
-whether that binding is currently valid) without the bridge methods
-(`boundCollection` / `registerWithSource`) of the full `IAgentSourceBinding`
-(`0x27eba962`).
+Client bindings for `IAgentSourceBinding` (ERC-165 id **`0x27eba962`**). Exposes
+both the *read* side (which source NFT an agent is bound to, and whether that
+binding is currently valid) and the *write* side (registering a new agent from
+a source token in the bound collection).
 
 ## API
 
-### `SourceBindingViewClient`
+### `SourceBindingClient`
+
+Requires an `Account` for transaction signing. View methods work over the
+public client; write methods (`register`) broadcast via the wallet client.
 
 | Method | Description | State |
 | --- | --- | --- |
+| `boundCollection()` | The source ERC-721 collection this registry is bound to | read |
 | `getSourceNFT(agentId)` | The `(sourceContract, sourceTokenId)` the agent is bound to | read |
 | `hasSourceNFT(agentId)` | Whether the agent claims a source NFT | read |
 | `isSourceNFTOwnershipValid(agentId)` | Whether the bound NFT is still owned by the agent's controller | read |
-| `supportsSourceBindingView()` | ERC-165 check for `0x8b3597c9` | read |
+| `register(sourceTokenId)` | Register an agent from `sourceTokenId` in the bound collection | write |
+| `supportsSourceBinding()` | ERC-165 check for `0x27eba962` | read |
 
-`SOURCE_BINDING_VIEW_INTERFACE_ID` (`0x8b3597c9`) is exported for direct ERC-165
+`SOURCE_BINDING_INTERFACE_ID` (`0x27eba962`) is exported for direct ERC-165
 checks.
 
 ## No Layer-2 recompute

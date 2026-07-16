@@ -1,4 +1,11 @@
-AGENT_SOURCE_BINDING_VIEW_ABI = [
+AGENT_SOURCE_BINDING_ABI = [
+    {
+        "type": "function",
+        "name": "boundCollection",
+        "stateMutability": "view",
+        "inputs": [],
+        "outputs": [{"name": "", "type": "address"}],
+    },
     {
         "type": "function",
         "name": "getSourceNFT",
@@ -25,9 +32,26 @@ AGENT_SOURCE_BINDING_VIEW_ABI = [
     },
     {
         "type": "function",
+        "name": "registerWithSource",
+        "stateMutability": "payable",
+        "inputs": [{"name": "sourceTokenId", "type": "uint256"}],
+        "outputs": [{"name": "agentId", "type": "uint256"}],
+    },
+    {
+        "type": "function",
         "name": "supportsInterface",
         "stateMutability": "view",
         "inputs": [{"name": "interfaceId", "type": "bytes4"}],
         "outputs": [{"name": "", "type": "bool"}],
+    },
+    {
+        "type": "event",
+        "name": "SourceNFTLinked",
+        "anonymous": False,
+        "inputs": [
+            {"name": "agentId", "type": "uint256", "indexed": True},
+            {"name": "sourceContract", "type": "address", "indexed": True},
+            {"name": "sourceTokenId", "type": "uint256", "indexed": False},
+        ],
     },
 ]
