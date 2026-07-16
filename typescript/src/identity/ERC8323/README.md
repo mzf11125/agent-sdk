@@ -18,7 +18,7 @@ public client; write methods (`register`) broadcast via the wallet client.
 | `getSourceNFT(agentId)` | The `(sourceContract, sourceTokenId)` the agent is bound to | read |
 | `hasSourceNFT(agentId)` | Whether the agent claims a source NFT | read |
 | `isSourceNFTOwnershipValid(agentId)` | Whether the bound NFT is still owned by the agent's controller | read |
-| `register(sourceTokenId)` | Register an agent from `sourceTokenId` in the bound collection | write |
+| `register(sourceTokenId, value = 0n)` | Register an agent from `sourceTokenId` in the bound collection. Pass the registry's mint price (wei) if it charges one -- the call reverts on insufficient value | write, payable |
 | `supportsSourceBinding()` | ERC-165 check for `0x27eba962` | read |
 
 `SOURCE_BINDING_INTERFACE_ID` (`0x27eba962`) is exported for direct ERC-165

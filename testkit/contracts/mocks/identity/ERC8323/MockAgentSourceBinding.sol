@@ -13,7 +13,13 @@ import {IAgentSourceBinding} from "@agent-ercs/identity/ERC8323/IAgentSourceBind
 /// @dev This mock skips the ERC-721 source-ownership check (it mints an agent
 ///      to anyone who calls registerWithSource) so that integration tests can
 ///      exercise the full SDK client without deploying a real source collection.
+///      It DOES enforce a non-zero mint price (real registries, e.g. Merlini's
+///      deployed AgentIdentityRegistry, gate on `require(msg.value == mintPrice)`
+///      -- a mock that skips this check silently masks any client that fails to
+///      thread `msg.value` through, see the 2026-07-16 bug this fixed).
 contract MockAgentSourceBinding is ERC721, IAgentSourceBinding {
+    uint256 public constant MINT_PRICE = 0.001 ether;
+
     address private _boundCollection;
     mapping(uint256 => address) private _sourceContracts;
     mapping(uint256 => uint256) private _sourceTokenIds;
@@ -33,6 +39,7 @@ contract MockAgentSourceBinding is ERC721, IAgentSourceBinding {
         override
         returns (uint256 agentId)
     {
+        require(msg.value == MINT_PRICE, "MockAgentSourceBinding: wrong mint price");
         agentId = _nextAgentId++;
         _safeMint(msg.sender, agentId);
         _sourceContracts[agentId] = _boundCollection;

@@ -43,9 +43,18 @@ class SourceBindingClient:
         """The source ERC-721 collection this registry is bound to."""
         return self._contract.functions.boundCollection().call()
 
-    def register(self, source_token_id: int) -> int:
-        """Register an agent derived from ``source_token_id`` of the bound collection."""
-        tx_hash = self._contract.functions.registerWithSource(source_token_id).transact()
+    def register(self, source_token_id: int, value: int = 0) -> int:
+        """Register an agent derived from ``source_token_id`` of the bound collection.
+
+        ``registerWithSource`` is ``payable`` on the interface -- a real deployed
+        registry (e.g. Merlini's AgentIdentityRegistry) gates on
+        ``require(msg.value == mintPrice)``. ``value`` defaults to 0 (matches a
+        free/mock registry unchanged); pass the registry's actual mint price
+        (in wei) for a paid one, or the call reverts with insufficient value.
+        """
+        tx_hash = self._contract.functions.registerWithSource(source_token_id).transact(
+            {"value": value}
+        )
         receipt = self._w3.eth.wait_for_transaction_receipt(tx_hash)
         events = self._contract.events.SourceNFTLinked().process_receipt(receipt, errors=DISCARD)
         if not events:

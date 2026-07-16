@@ -18,7 +18,7 @@ public client; write methods (`register`) broadcast via the signing middleware.
 | `get_source_nft(agent_id)` | The `(source_contract, source_token_id)` the agent is bound to | read |
 | `has_source_nft(agent_id)` | Whether the agent claims a source NFT | read |
 | `is_source_nft_ownership_valid(agent_id)` | Whether the bound NFT is still owned by the agent's controller | read |
-| `register(source_token_id)` | Register an agent from `source_token_id` in the bound collection | write |
+| `register(source_token_id, value = 0)` | Register an agent from `source_token_id` in the bound collection. Pass the registry's mint price (wei) if it charges one -- the call reverts on insufficient value | write, payable |
 | `supports_source_binding()` | ERC-165 check for `0x27eba962` | read |
 
 `SOURCE_BINDING_INTERFACE_ID` (`0x27eba962`) is exported for direct ERC-165

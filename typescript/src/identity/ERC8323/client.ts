@@ -48,9 +48,17 @@ export class SourceBindingClient {
     return this.read<Address>('boundCollection', [])
   }
 
-  /** Register an agent derived from `sourceTokenId` of the bound collection. */
-  async register(sourceTokenId: bigint): Promise<bigint> {
-    const receipt = await this.send('registerWithSource', [sourceTokenId])
+  /**
+   * Register an agent derived from `sourceTokenId` of the bound collection.
+   *
+   * `registerWithSource` is `payable` on the interface -- a real deployed
+   * registry (e.g. Merlini's AgentIdentityRegistry) gates on
+   * `require(msg.value == mintPrice)`. `value` defaults to `0n` (matches a
+   * free/mock registry unchanged); pass the registry's actual mint price for
+   * a paid one, or the call reverts with insufficient value.
+   */
+  async register(sourceTokenId: bigint, value: bigint = 0n): Promise<bigint> {
+    const receipt = await this.send('registerWithSource', [sourceTokenId], value)
     const decoded = parseEventLogs({ abi: this.abi, logs: receipt.logs, eventName: 'SourceNFTLinked' })
     if (decoded.length === 0) {
       throw new Error('register: SourceNFTLinked event not found in transaction receipt')
@@ -88,12 +96,17 @@ export class SourceBindingClient {
     } as never) as Promise<T>
   }
 
-  private async send(functionName: string, args: unknown[]): Promise<TransactionReceipt> {
+  private async send(
+    functionName: string,
+    args: unknown[],
+    value: bigint = 0n,
+  ): Promise<TransactionReceipt> {
     const { request } = await this.publicClient.simulateContract({
       address: this.address,
       abi: this.abi,
       functionName,
       args,
+      value,
       account: this.walletClient.account,
     } as never)
     const hash = await this.walletClient.writeContract(request as never)
