@@ -96,4 +96,24 @@ export const identityRegistryAbi = [
       { name: 'owner', type: 'address', indexed: true },
     ],
   },
+  // ERC-8323 (Source-Token Agent Binding) — the single spec-defined overload
+  // of registerWithSource, for registries deployed bound to a fixed source
+  // ERC-721 collection instead of (or in addition to) the base ERC-8004
+  // register(). See identity/ERC8323/IAgentSourceBinding.sol in agent-ercs.
+  {
+    type: 'function',
+    name: 'registerWithSource',
+    stateMutability: 'payable',
+    inputs: [{ name: 'sourceTokenId', type: 'uint256' }],
+    outputs: [{ name: 'agentId', type: 'uint256' }],
+  },
+  {
+    type: 'event',
+    name: 'SourceNFTLinked',
+    inputs: [
+      { name: 'agentId', type: 'uint256', indexed: true },
+      { name: 'sourceContract', type: 'address', indexed: true },
+      { name: 'sourceTokenId', type: 'uint256', indexed: false },
+    ],
+  },
 ] as const

@@ -39,6 +39,22 @@ class IdentityRegistryClient:
             raise RuntimeError("register: Registered event not found in transaction receipt")
         return registered_events[0]["args"]["agentId"]
 
+    def register_with_source(self, source_token_id: int) -> int:
+        """ERC-8323 (Source-Token Agent Binding) — mints an agent bound to
+        ``source_token_id`` on this registry's fixed source collection. Only
+        the single spec-defined overload (``registerWithSource(uint256)``)
+        is bound here; a registry MAY expose additional overloads (payable
+        amounts, inline metadata, etc.) not covered by the base ERC-8323
+        interface — those need their own client method once their exact
+        signature is known, not guessed.
+        """
+        tx_hash = self._contract.functions.registerWithSource(source_token_id).transact()
+        receipt = self._w3.eth.wait_for_transaction_receipt(tx_hash)
+        linked_events = self._contract.events.SourceNFTLinked().process_receipt(receipt, errors=DISCARD)
+        if not linked_events:
+            raise RuntimeError("register_with_source: SourceNFTLinked event not found in transaction receipt")
+        return linked_events[0]["args"]["agentId"]
+
     def set_agent_uri(self, agent_id: int, agent_uri: str) -> None:
         self._send("setAgentURI", agent_id, agent_uri)
 

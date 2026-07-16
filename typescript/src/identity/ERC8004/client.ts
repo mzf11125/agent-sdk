@@ -36,6 +36,24 @@ export class IdentityRegistryClient {
     return decoded[0].args.agentId as bigint
   }
 
+  /**
+   * ERC-8323 (Source-Token Agent Binding) — mints an agent bound to
+   * `sourceTokenId` on this registry's fixed source collection. Only the
+   * single spec-defined overload (`registerWithSource(uint256)`) is bound
+   * here; a registry MAY expose additional overloads (payable amounts,
+   * inline metadata, etc.) not covered by the base ERC-8323 interface —
+   * those need their own client method once their exact signature is known,
+   * not guessed.
+   */
+  async registerWithSource(sourceTokenId: bigint): Promise<bigint> {
+    const receipt = await this.send('registerWithSource', [sourceTokenId])
+    const decoded = parseEventLogs({ abi: this.abi, logs: receipt.logs, eventName: 'SourceNFTLinked' })
+    if (decoded.length === 0) {
+      throw new Error('registerWithSource: SourceNFTLinked event not found in transaction receipt')
+    }
+    return decoded[0].args.agentId as bigint
+  }
+
   async setAgentURI(agentId: bigint, agentURI: string): Promise<void> {
     await this.send('setAgentURI', [agentId, agentURI])
   }
