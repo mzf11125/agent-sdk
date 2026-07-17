@@ -1,0 +1,12 @@
+[package]
+name = "agent-sdk-core"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+alloy-core = { version = "0.8", default-features = false }
+alloy-primitives = { version = "0.8", default-features = false }
+
+[features]
+default = ["std"]
+std = []
