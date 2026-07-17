@@ -13,11 +13,10 @@ Refresh SDK support for an ERC that `agent-sdk` already implements, after `agent
 
 1. **Determine what changed.** If not specified, ask which ERC changed in `agent-ercs`, and what changed (or point to the commit/PR). Check out the relevant `agent-ercs` ref if it differs from what's currently checked out.
 
-2. **Diff against what's implemented.** Compare the current `agent-ercs` interface against the existing clients under `typescript/src/<category>/<ERCXXXX>/` and `python/src/agent_sdk/<category>/<ercxxxx>/`. Also check whether the recompute layer files exist:
-   - `typescript/src/<category>/<ERCXXXX>/recompute.ts`
-   - `python/src/agent_sdk/<category>/<ercxxxx>/recompute.py`
-   - `typescript/test/<category>/<ERCXXXX>/recompute.test.ts`
-   - `python/tests/<category>/<ercxxxx>/test_recompute.py`
+2. **Diff against what's implemented.** Compare the current `agent-ercs` interface against the existing clients for all three languages. Check whether the recompute layer files exist:
+   - `typescript/src/<category>/<ERCXXXX>/recompute.ts` + test
+   - `python/src/agent_sdk/<category>/<ercxxxx>/recompute.py` + test
+   - `rust/core/src/<erc_lowercase>/recompute.rs` (inline `#[cfg(test)]`)
    
    If they're missing and the ERC has spec changes (or had recompute-able claims that were never extracted), flag that Layer 2 needs to be created.
 

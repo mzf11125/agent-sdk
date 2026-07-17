@@ -82,10 +82,21 @@ The output has two layers:
    **c) Post-generation cleanup:** After writing all recompute files, scan each file for unused imports and remove them before finalizing. Generated code should be clean on arrival — no dangling imports from copy-paste or removed computations.
 
    **d) Rust `recompute.rs` + inline tests:**
-   - Generate `rust/core/src/<erc_lowercase>/recompute.rs` (lowercase ERC segment, e.g. `erc8004`). Use `alloy-core` and `alloy-primitives` for crypto primitives (`keccak256`, `SolValue::abi_encode`, `FixedBytes<32>`, `U256`).
-   - Pure `no_std` functions — no networking, no alloc unless needed. Each function: Javadoc comment with ERC section, clean input types (`u64`, `U256`, `FixedBytes<32>`, `&str`), deterministic output.
-   - Write inline `#[cfg(test)] mod tests { ... }` directly in `recompute.rs`. Inline golden vectors (duplicate expected values) are the primary test. Also attempt to read recompute-kit vectors from disk via `include_str!` or a relative path for secondary conformance check.
+   - Generate `rust/core/src/<erc_lowercase>/recompute.rs` (lowercase ERC segment, e.g. `erc8004`).
+   - **Imports (module-level):** Only what the public functions need. Use `alloy_primitives::{keccak256, FixedBytes}` for hashes and bytes32 types (use `FixedBytes<32>` explicitly, not the `B256` alias). For ABI encoding, use `alloy_core::sol_types::SolValue` — this requires `sol-types` feature enabled on `alloy-core` in `Cargo.toml`. For integer-to-bytes32 padding, use `u64::to_be_bytes()` into a `[0u8; 32]` buffer.
+   - **Test imports inside `#[cfg(test)]`:** Put `use alloy_primitives::hex;` inside the test module (not module-level, or it triggers "unused import" in non-test builds). Use `hex!("...")` macro for inline golden vector hex literals.
+   - Pure `no_std` functions — no networking, no alloc unless needed. Each function: doc comment with ERC section, clean input types (`u64`, `FixedBytes<32>`, `&str`), `FixedBytes<32>` output (not `B256`).
+   - Write inline `#[cfg(test)] mod tests { ... }` directly in `recompute.rs`. Inline golden vectors (duplicate expected values from recompute-kit) are the primary test. Each golden vector gets its own `#[test]` function. Edge cases: zero, empty input, different-inputs-different-hash, max values.
    - Tests run with `cargo test -p agent-sdk-core` — no anvil or network needed.
+   - **Concrete patterns by operation type:**
+
+     | Operation | Rust pattern |
+     |-----------|-------------|
+     | `bytes32(uint256(x))` left-pad | `u64_to_bytes32`: `let mut buf = [0u8; 32]; buf[24..].copy_from_slice(&x.to_be_bytes()); FixedBytes::new(buf)` |
+     | `keccak256(bytes)` | `keccak256(&bytes)` — returns `FixedBytes<32>` |
+     | `keccak256(utf8(str))` | `keccak256(s.as_bytes())` |
+     | `concat(a, b)` then keccak | `let mut v = Vec::new(); v.extend_from_slice(a); v.extend_from_slice(b); keccak256(&v)` |
+     | `abi.encode(type1, type2)` | `(val1, val2).abi_encode()` — requires `SolValue` in scope |
 
 8. **Run the recompute tests separately first.** Before touching any contract infrastructure, run `npx vitest run <path-to-recompute.test.ts>` (TS), `pytest <path-to-test_recompute.py>` (Python), and `cargo test -p agent-sdk-core` (Rust). These must pass without any blockchain node. If they fail, debug the recompute implementation before proceeding to Layer 1.
 
@@ -101,6 +112,13 @@ The output has two layers:
      * Read-only contract calls: methods return `Result<T, ClientError>` where fetching happens via `self.provider.fetch(key)`. No `send`/broadcast in core — write methods belong in the `providers` crate or a separate host-only layer.
      * For ERCs with no contract interface (recompute-only), skip Rust Layer 1 entirely.
    - Generate `rust/core/src/<erc_lowercase>/mod.rs` that re-exports both `recompute` and `client` modules.
+
+   - **Rust integration tests** (for ERCs with a contract interface):
+     * Create `rust/core/tests/<erc_lowercase>_integration.rs`. This test file uses the same testkit workflow as TS/Python: anvil running, contract deployed via Foundry script.
+     * Dev-dependencies needed in `rust/core/Cargo.toml`: `alloy-provider`, `alloy-transport-http`, `tokio` (with `rt` and `macros` features).
+     * Define ABI inline using `alloy_core::sol! { ... }` macro. Create an async provider with `alloy_provider::ProviderBuilder::new().on_http("http://127.0.0.1:8545")`. Call contract via `FunctionName::new(args).call(&provider, address).await`.
+     * Tests are `#[tokio::test] async fn` — one per contract method tested. Read the deployed contract address from an env var or hardcode the known anvil deploy address.
+     * Integration tests are NOT `#[cfg(test)]` inline — they're separate files under `tests/` that compile as binaries and only run when anvil is available.
    - If the ERC needs a contract to deploy for testing and `agent-ercs` has no base implementation yet, write a minimal reference implementation under `testkit/contracts/mocks/<category>/<ERCXXXX>/` (one file per contract if the ERC needs more than one), clearly commented as local-testing-only (see `MockIdentityRegistry.sol` for a single-contract pattern, `MockProofVerifier.sol`/`MockAgentVerifier.sol`/`MockAgentVerifiable.sol` for a multi-contract one), plus a Foundry unit test for it/them under `testkit/test/<category>/<ERCXXXX>/`.
    - Write `testkit/script/<category>/<ERCXXXX>/Deploy<ERCXXXX>.s.sol` (file basename must match its contract name, e.g. `DeployERC8301.s.sol` containing `contract DeployERC8301` — Foundry keys broadcast artifacts by script basename only, so reusing a generic name like `Deploy.s.sol` across ERCs would collide). If the ERC needs several wired-together contracts, deploy all of them in one script (constructor-inject each into the next) — `testkit/scripts/deploy.sh` prints one address per line in the order each was deployed; use `deployContracts()`/`deploy_contracts()` (plural, returning the full list) instead of the single-address `deployContract()`/`deploy_contract()` to receive all of them (see `typescript/test/verify/ERC8274/erc.test.ts` / `python/tests/verify/erc8274/test_erc.py`).
    - Write tests for both languages that deploy via `testkit/scripts/deploy.sh` (see `typescript/test/identity/ERC8004/erc.test.ts` and `python/tests/identity/erc8004/test_erc.py` for the single-contract wiring pattern, or the ERC-8274 test files above for multi-contract) and call the client's methods. For any claim classified as recompute-to-verify, also test that the check rejects tampered/incorrect data (a bad proof, a bad signature) — some checks reject by returning a falsy result rather than reverting; assert whichever the contract actually does, don't assume a revert.
