@@ -38,24 +38,21 @@ Off-chain SDKs (TypeScript, Python) for the ERCs defined in [trustless-ai/agent-
 
 ## Using the SDKs
 
-Neither package is published yet; use them from a local checkout.
-
 ### TypeScript
 
 ```bash
-cd typescript
-npm install
+npm install @trustless-ai/agent-sdk
 ```
 
 ```ts
 // Contract call — talk to a deployed ERC contract
-import { SomeClient } from 'agent-sdk/<category>/<ERCXXXX>'
+import { SomeClient } from '@trustless-ai/agent-sdk/<category>/<ERCXXXX>'
 
 const client = new SomeClient({ rpcUrl, address: deployedAddress }, account)
 const result = await client.someMethod(...)
 
 // Recompute — verify a claim without touching the chain
-import { someHash } from 'agent-sdk/<category>/<ERCXXXX>/recompute'
+import { someHash } from '@trustless-ai/agent-sdk/<category>/<ERCXXXX>/recompute'
 
 const hash = someHash(publicInput)
 ```
@@ -63,9 +60,7 @@ const hash = someHash(publicInput)
 ### Python
 
 ```bash
-cd python
-python3 -m venv .venv && source .venv/bin/activate
-pip install -e '.[dev]'
+pip install agent-sdk
 ```
 
 ```python
