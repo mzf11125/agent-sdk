@@ -67,6 +67,10 @@
     "./verify/ERC8281/recompute": {
       "types": "./dist/verify/ERC8281/recompute.d.ts",
       "default": "./dist/verify/ERC8281/recompute.js"
+    },
+    "./anchor/ERC8263": {
+      "types": "./dist/anchor/ERC8263/index.d.ts",
+      "default": "./dist/anchor/ERC8263/index.js"
     }
   },
   "scripts": {

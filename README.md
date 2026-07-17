@@ -21,6 +21,7 @@ Off-chain SDKs (TypeScript, Python) for the ERCs defined in [trustless-ai/agent-
 
 | ERC | Category | Contract Calls | Recompute |
 |-----|----------|----------------|-----------|
+| [ERC-8263](https://github.com/trustless-ai/agent-ercs/tree/main/contracts/anchor/ERC8263) — OnChain Proof Anchor | `anchor` | `OnChainProofClient` | — |
 | [ERC-8004](https://github.com/trustless-ai/agent-ercs/tree/main/contracts/identity/ERC8004) — Identity Registry | `identity` | `IdentityRegistryClient` | `computeAgentId` |
 | [ERC-8323](https://github.com/trustless-ai/agent-ercs/tree/main/contracts/identity/ERC8323) — Source-Token Agent Binding | `identity` | `SourceBindingClient` | — |
 | [ERC-8274](https://github.com/trustless-ai/agent-ercs/tree/main/contracts/verify/ERC8274) — AI Inference Proof | `verify` | `ProofVerifierClient`, `AgentVerifierClient`, `getTrustedVerifier` | — |
