@@ -1,0 +1,6 @@
+export { getTrustedVerifier } from './agentVerifiable.js'
+export { AgentVerifierClient } from './agentVerifierClient.js'
+export { ProofVerifierClient } from './proofVerifierClient.js'
+export type { AgentVerifiableConfig } from './agentVerifiable.js'
+export type { VerificationResult } from './agentVerifierClient.js'
+export type { ClientConfig } from './types.js'

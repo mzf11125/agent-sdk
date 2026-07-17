@@ -1,0 +1,15 @@
+[profile.default]
+src = "contracts"
+script = "script"
+test = "test"
+out = "out"
+libs = ["lib"]
+solc = "0.8.25"
+evm_version = "cancun"
+allow_paths = ["../agent-ercs"]
+
+remappings = [
+    "@agent-ercs/=../agent-ercs/contracts/",
+    "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
+    "forge-std/=lib/forge-std/src/",
+]

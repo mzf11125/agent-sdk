@@ -1,134 +1,112 @@
-# @trustless-ai/agent-sdk
+<div align="center">
+    <img width="3265" height="994" alt="e89e95aa8ed6a99833394682c6632cb7" src="https://github.com/user-attachments/assets/9ed2ab1a-aab5-4133-a5e2-5bcbdad0ffea" />
+</div>
 
-The off-chain **verify / recompute** layer of the [trustless-ai](https://github.com/trustless-ai) boundary
-chain. One install to **commit-before-outcome**, anchor to public sources, and **verify any layer's
-claims trusting no one**.
+# agent-sdk
+
+Off-chain SDKs (TypeScript, Python) for the ERCs defined in [trustless-ai/agent-ercs](https://github.com/trustless-ai/agent-ercs).
+
+## What this is
+
+`agent-sdk` is the off-chain half of the [trustless-ai](https://github.com/trustless-ai) stack — `agent-ercs` defines the on-chain Solidity interfaces, and this repo provides the client libraries that talk to them. It does two things:
+
+- **Call contracts** — typed clients that read and write deployed ERC contracts, wrapping `viem` (TypeScript) / `web3.py` (Python) with the exact types and method names from each ERC interface.
+- **Recompute claims** — pure stateless functions that reproduce ERC-defined cryptographic operations (hashing, padding, encoding, arithmetic) from public inputs, without touching a chain. Every recompute function is tested against golden conformance vectors so you can verify a claim locally, offline, or in a browser.
+
+> **This SDK is AI-generated, not hand-written.** Every ERC's client code, tests, and documentation is produced by an AI coding agent following the `/add-erc` skill — not typed by a human line by line. See [Adding a new ERC](#adding-a-new-erc).
+
+---
+
+## Supported ERCs
+
+| ERC | Category | Contract Calls | Recompute |
+|-----|----------|----------------|-----------|
+| [ERC-8263](https://github.com/trustless-ai/agent-ercs/tree/main/contracts/anchor/ERC8263) — OnChain Proof Anchor | `anchor` | `OnChainProofClient` | — |
+| [ERC-8004](https://github.com/trustless-ai/agent-ercs/tree/main/contracts/identity/ERC8004) — Identity Registry | `identity` | `IdentityRegistryClient` | `computeAgentId` |
+| [ERC-8323](https://github.com/trustless-ai/agent-ercs/tree/main/contracts/identity/ERC8323) — Source-Token Agent Binding | `identity` | `SourceBindingClient` | — |
+| [ERC-8274](https://github.com/trustless-ai/agent-ercs/tree/main/contracts/verify/ERC8274) — AI Inference Proof | `verify` | `ProofVerifierClient`, `AgentVerifierClient`, `getTrustedVerifier` | — |
+| [ERC-8281](https://github.com/trustless-ai/agent-ercs/tree/main/contracts/verify/ERC8281) — Observation Commitment Protocol (OCP) | `verify` | `ObservationCommitmentClient` | `computeObservationDigest` |
+| [ERC-8299](https://github.com/trustless-ai/agent-ercs/tree/main/contracts/verify/ERC8299) — WYRIWE Input Provenance | `verify` | `WyriweAttestationClient`, `JudgmentExecutionClient` | `computeRawInputHash`, `computeSanitizationPipelineHash` |
+| [ERC-8301](https://github.com/trustless-ai/agent-ercs/tree/main/contracts/execution/ERC8301) — Agent Execution | `execution` | `AgentWorkflowClient` | `computeTaskHash`, `computeReplyHash` |
+| [ERC-8203](https://github.com/trustless-ai/agent-ercs/tree/main/contracts/settlement/ERC8203) — Consult Escrow | `settlement` | `ConsultEscrowClient` | `computeVerdictHash` |
+| [ERC-8275](https://github.com/trustless-ai/agent-ercs/tree/main/contracts/reputation/ERC8275) — Agent Reputation | `reputation` | `AgentReputationClient` | `computeWinRate` |
+| [ERC-8312](https://github.com/trustless-ai/agent-ercs/tree/main/contracts/settlement/ERC8312) — Cap Conservation | `settlement` | — | `checkStatefulBound`, `checkCursorHeadroom` |
+
+> **Contract Calls** are typed clients that call deployed contracts. **Recompute** functions are pure, stateless, and run without an RPC endpoint — they reproduce the same deterministic computation the contract performs, verified against golden conformance vectors.
+
+---
+
+## Using the SDKs
+
+Neither package is published yet; use them from a local checkout.
+
+### TypeScript
 
 ```bash
-npm install @trustless-ai/agent-sdk
+cd typescript
+npm install
 ```
 
-> **Status: v0.2.** The pure core (verify, commit-hash, `normalizeSpec`, the full-flow gate, recompute)
-> is implemented and tested. v0.2 adds the **anchor leg** — `publishCommit()` (relay publish + OTS) —
-> as an injected-I/O convenience over the zero-I/O core (see "Why I/O is injected" below), plus
-> `normalizeSpec()`, the single anti-drift normalization point both committer and escrow share. First
-> consumer: [`hack-ens-recovery`](https://github.com/TMerlini/hack-ens-recovery).
+```ts
+// Contract call — talk to a deployed ERC contract
+import { SomeClient } from 'agent-sdk/<category>/<ERCXXXX>'
 
-## Recompute / verify — run it yourself
+const client = new SomeClient({ rpcUrl, address: deployedAddress }, account)
+const result = await client.someMethod(...)
+
+// Recompute — verify a claim without touching the chain
+import { someHash } from 'agent-sdk/<category>/<ERCXXXX>/recompute'
+
+const hash = someHash(publicInput)
+```
+
+### Python
 
 ```bash
-npm test     # build a commit, sign it, verify it, exercise the gate — no network
+cd python
+python3 -m venv .venv && source .venv/bin/activate
+pip install -e '.[dev]'
 ```
 
-## The trust anchor, and the convenience layer over it (both shown, never a black box)
+```python
+# Contract call
+from agent_sdk.<category>.<ercxxxx>.client import SomeClient
 
-Per the org [CONTRIBUTING](https://github.com/trustless-ai/.github/blob/main/CONTRIBUTING.md), the
-zero-I/O verify core is first-class and you can always step underneath the one-liner:
+client = SomeClient(rpc_url, deployed_address, account)
+result = client.some_method(...)
 
-```js
-const { verifyFullFlow, verifyProof } = require('@trustless-ai/agent-sdk');
+# Recompute
+from agent_sdk.<category>.<ercxxxx>.recompute import some_hash
 
-// convenience: the whole gate in one call
-const gate = verifyFullFlow({
-  proofEvent, expectArtifactHash, expectPubkey,
-  schemaPrefix: 'trustless-ai.', relaySeen, otsVerified,
-});
-// gate.ok === verify.valid && artifact_hash_matches && anchored
-
-// underneath: the exact same trust anchor, by hand — recompute the NIP-01 id + BIP-340 sig yourself
-const v = verifyProof(proofEvent, { expectPubkey });   // { valid, checks, proof_payload }
+hash = some_hash(public_input)
 ```
 
-`verifyProof` is byte-compatible with the [`invinoveritas-verify`](https://www.npmjs.com/package/invinoveritas-verify)
-reference verifier and with `https://api.babyblueviper.com/verify-proof`. `CORE.verifies_like` pins the
-exact core logic version your one-liner runs.
+Each ERC's own `README.md` documents the full method list, types, and whether `verify()` is available for that ERC.
 
-## The gate (never `valid` alone)
+---
+
+## Adding a new ERC
+
+Open this repo in Claude Code and run:
 
 ```
-ok = valid  AND  artifact_hash_matches  AND  anchored(relaySeen && otsVerified)
+/add-erc
 ```
 
-`valid` only proves the receipt is a genuine signed proof — **not** that it is *this* job's, and proofs
-carry no nonce/expiry so a valid receipt is **replayable**. So a consumer (e.g. an escrow) must gate on
-all three **plus** an on-chain delivery check (assets actually landed at `output_address`) **plus** a
-nullifier (mark the `artifact_hash` spent on release). The SDK does the off-chain three; the on-chain
-two are the contract's job.
+Tell it which ERC number, or let it ask. It will:
 
-## Commit-before-outcome
+1. Read the ERC's interface and README from the `agent-ercs` submodule.
+2. Judge which capability applies — contract calls, recompute, or both — with stated reasoning.
+3. Propose the client API for your approval before writing any code.
+4. Write the TypeScript and Python clients, recompute functions (where applicable), test contracts, and tests.
+5. Run every test to green.
 
-```js
-const { buildCommitEvent, artifactHash, normalizeSpec } = require('@trustless-ai/agent-sdk');
+If `agent-ercs` changes an ERC you already support, run `/update-erc` instead — it diffs against what's implemented and only re-does the classification if the change affects it.
 
-// artifact_hash = canonical hash of the job spec. Put a job_id/salt in so two identical jobs stay
-// distinct; keep result_ref / settled-tx OUT (that's the outcome leg). normalizeSpec FIRST (below).
-const spec = normalizeSpec({ job_id, target_wallet, output_address, asset_set });
-const { event, artifact_hash } = buildCommitEvent({ spec, pubkey, judgmentType: 'recovery_receipt' });
-event.sig = yourSigner(event.id);   // signing/keys stay yours — the SDK never touches a private key
-```
+Both skills are defined in [`.claude/skills/add-erc/SKILL.md`](.claude/skills/add-erc/SKILL.md) and [`.claude/skills/update-erc/SKILL.md`](.claude/skills/update-erc/SKILL.md). This is also how you contribute to this repo — the skills are the contribution pipeline.
 
-`committed_at` is set to the event's `created_at`, so the commit provably predates its outcome once
-anchored (relay copy + Bitcoin PoW via OpenTimestamps, `ots verify -d <event_id>`). The matching
-read shape is `GET /ledger/{entry}/commitment`; the outcome leg is `GET /ledger/{entry}/outcome`.
-
-## `normalizeSpec` — one function, identical on both sides (kills canonicalization drift)
-
-The committer and the escrow must hash **byte-identical** input, or `artifact_hash_matches` silently
-fails. `artifactHash` is pure and **case-agnostic about addresses by design** — so normalize *upstream*,
-at a single shared point, rather than special-casing inside `canonical()`:
-
-```js
-const h      = artifactHash(normalizeSpec(spec));   // committer (receipt.ts)
-const expect = artifactHash(normalizeSpec(spec));   // escrow — same fn, same input → same hash
-```
-
-`normalizeSpec` recursively lowercases EVM-address-shaped strings (`0x` + 40 hex) anywhere in the spec
-and leaves everything else untouched. Run it on both sides and checksum-casing can never cause a miss.
-
-## Anchor — `publishCommit()` (relay + OTS), injected I/O, never signs
-
-```js
-const { publishCommit } = require('@trustless-ai/agent-sdk');
-
-// event must already be SIGNED — the SDK never holds a key.
-const res = await publishCommit({
-  event,
-  relays: ['wss://relay.damus.io', 'wss://nos.lol'],
-  // defaults: relays via the runtime's WebSocket (Node>=21/Bun/browser); inject your own on older Node.
-  otsStamp: async (id) => myOtsClient.stamp(id),   // injected: needs the `ots` calendar I/O
-});
-// → { event_id, published_at, relays, relay_count, ots, anchored, commitment_proof }
-// commitment_proof is the exact shape GET /ledger/{entry}/commitment mirrors, so verifyFullFlow()
-// and /ledger read the same thing. The Bitcoin-PoW leg confirms later: `ots verify -d <event_id>`.
-```
-
-There is **no `POST /ledger/commit`** and there shouldn't be — `/ledger` is read-only; routing the
-anchor through a server would re-centralize the exact thing the commitment-proof model makes trustless.
-`publishCommit` anchors to public sources anyone re-derives; nothing routes through us.
-
-## On-chain pairing — `packReceiptProof()`
-
-When a consumer wants the `valid` (signature) leg enforced **on-chain trusting no one** (e.g. the
-`recovery-escrow` flow's `BIP340Verifier`, IReceiptVerifier impl A — BIP-340 via the `ecrecover` trick),
-pack a signed event into the exact bytes its `verify()` consumes:
-
-```js
-const { packReceiptProof } = require('@trustless-ai/agent-sdk');
-const receiptProof = packReceiptProof(signedEvent); // 0x abi.encode(px, rx, s, preimage)
-// escrow.release(jobId, receiptProof) → contract computes id = sha256(preimage), BIP-340-verifies,
-// and extracts artifact_hash from the SAME signed bytes. Off-chain verifyFullFlow() and on-chain
-// verify() therefore read byte-identical input — the same anti-drift discipline as normalizeSpec.
-```
-
-The SDK never signs — `event.sig` must already be present. No trusted key, no oracle: the chain
-recomputes the id and checks the signature itself.
-
-## Why I/O is injected
-
-Relay fetch and OTS calendar access are network, environment, and policy dependent. Keeping them out of
-the core means the trust anchor is pure, deterministic, and testable, and you bring your own relay/OTS
-client. `publishCommit()` is the thin convenience layer over that core — every leg of it is injectable.
+---
 
 ## License
 
-Apache-2.0.
+Apache 2.0 — see [LICENSE](./LICENSE).

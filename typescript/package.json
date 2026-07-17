@@ -1,0 +1,88 @@
+{
+  "name": "@trustless-ai/agent-sdk",
+  "version": "0.1.0",
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./identity/ERC8004": {
+      "types": "./dist/identity/ERC8004/index.d.ts",
+      "default": "./dist/identity/ERC8004/index.js"
+    },
+    "./identity/ERC8004/recompute": {
+      "types": "./dist/identity/ERC8004/recompute.d.ts",
+      "default": "./dist/identity/ERC8004/recompute.js"
+    },
+    "./verify/ERC8274": {
+      "types": "./dist/verify/ERC8274/index.d.ts",
+      "default": "./dist/verify/ERC8274/index.js"
+    },
+    "./verify/ERC8299": {
+      "types": "./dist/verify/ERC8299/index.d.ts",
+      "default": "./dist/verify/ERC8299/index.js"
+    },
+    "./verify/ERC8299/recompute": {
+      "types": "./dist/verify/ERC8299/recompute.d.ts",
+      "default": "./dist/verify/ERC8299/recompute.js"
+    },
+    "./execution/ERC8301": {
+      "types": "./dist/execution/ERC8301/index.d.ts",
+      "default": "./dist/execution/ERC8301/index.js"
+    },
+    "./execution/ERC8301/recompute": {
+      "types": "./dist/execution/ERC8301/recompute.d.ts",
+      "default": "./dist/execution/ERC8301/recompute.js"
+    },
+    "./settlement/ERC8203": {
+      "types": "./dist/settlement/ERC8203/index.d.ts",
+      "default": "./dist/settlement/ERC8203/index.js"
+    },
+    "./settlement/ERC8203/recompute": {
+      "types": "./dist/settlement/ERC8203/recompute.d.ts",
+      "default": "./dist/settlement/ERC8203/recompute.js"
+    },
+    "./reputation/ERC8275": {
+      "types": "./dist/reputation/ERC8275/index.d.ts",
+      "default": "./dist/reputation/ERC8275/index.js"
+    },
+    "./identity/ERC8323": {
+      "types": "./dist/identity/ERC8323/index.d.ts",
+      "default": "./dist/identity/ERC8323/index.js"
+    },
+    "./reputation/ERC8275/recompute": {
+      "types": "./dist/reputation/ERC8275/recompute.d.ts",
+      "default": "./dist/reputation/ERC8275/recompute.js"
+    },
+    "./verify/ERC8281": {
+      "types": "./dist/verify/ERC8281/index.d.ts",
+      "default": "./dist/verify/ERC8281/index.js"
+    },
+    "./verify/ERC8281/recompute": {
+      "types": "./dist/verify/ERC8281/recompute.d.ts",
+      "default": "./dist/verify/ERC8281/recompute.js"
+    },
+    "./anchor/ERC8263": {
+      "types": "./dist/anchor/ERC8263/index.d.ts",
+      "default": "./dist/anchor/ERC8263/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "viem": "^2.21.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0",
+    "@types/node": "^22.7.0"
+  }
+}
