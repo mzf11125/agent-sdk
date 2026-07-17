@@ -25,7 +25,23 @@ sol! {
 }
 
 const ANVIL_RPC: &str = "http://127.0.0.1:8545";
-const ANVIL_KEY_0: &str = "0x7aee26b767785be9d8de13cfdd08571a062b3787ab926f0b7c5f0d0cd0f69be1";
+
+/// Read anvil account #0 key from the testkit accounts file at runtime.
+fn anvil_key() -> String {
+    if let Ok(key) = std::env::var("ANVIL_KEY") {
+        return key;
+    }
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../testkit/.anvil-accounts.json");
+    if let Ok(data) = std::fs::read_to_string(&path) {
+        if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&data) {
+            if let Some(key) = parsed["accounts"][0]["privateKey"].as_str() {
+                return key.to_string();
+            }
+        }
+    }
+    panic!("ANVIL_KEY env var not set and testkit/.anvil-accounts.json not found");
+}
 
 fn contract_address() -> Address {
     let addr = std::env::var("ERC8301_ADDRESS")
@@ -43,7 +59,8 @@ async fn run_and_read_result() {
         return;
     }
 
-    let signer: alloy::signers::local::PrivateKeySigner = ANVIL_KEY_0.parse().expect("invalid key");
+    let key = anvil_key();
+    let signer: alloy::signers::local::PrivateKeySigner = key.parse().expect("invalid key");
     let provider = ProviderBuilder::new()
         .wallet(signer)
         .connect_http(ANVIL_RPC.parse().unwrap());

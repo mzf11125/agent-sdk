@@ -9,6 +9,7 @@ alloy-primitives = { version = "0.8", default-features = false }
 
 [dev-dependencies]
 alloy = { version = "2", features = ["full"] }
+serde_json = "1"
 tokio = { version = "1", features = ["rt", "macros"] }
 
 [features]
