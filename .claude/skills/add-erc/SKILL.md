@@ -144,16 +144,23 @@ The output has two layers:
 
 11. **Update root README.** Append the new ERC to the "Supported ERCs" table in the repo root `README.md`. Match the existing row format: ERC name with link to agent-ercs, category, Contract Calls column (list client classes or `—`), Recompute column (list recompute functions or `—`). Insert in alphabetical order within its category.
 
-12. **Run every new test to green** — first the recompute tests (offline, no anvil), then the full integration tests:
-    - `npx vitest run <recompute test path>` (TS Layer 2 — offline, no anvil needed)
-    - `pytest <recompute test path>` (Python Layer 2 — offline, no anvil needed)
-    - `cargo test -p agent-sdk-core` (Rust Layer 2 — offline, no anvil needed)
-    - Start anvil (`testkit/scripts/start-anvil.sh`), then:
-    - `npx vitest run` (TS Layer 1 integration tests + any other TS tests)
-    - `pytest` (Python Layer 1 integration tests + any other Python tests)
-    - `cargo test -p agent-sdk-core` (Rust Layer 1 integration tests, if any)
-    - If more than one ERC's tests now exist for a language, run that language's *full* suite, not just the new files in isolation — shared test infrastructure (one anvil instance and deployer account across all ERCs) can only reveal cross-file issues, such as a nonce race from parallel test execution, when everything runs together.
-    - Stop anvil (`testkit/scripts/stop-anvil.sh`) when done.
+12. **Run every new test to green via testkit** — recompute tests first (offline), then deploy and run integration tests through the testkit harness. **This is a hard requirement: every ERC with a contract interface MUST pass its Rust integration test against a local anvil deployed via testkit before the ERC is considered done.**
+
+    **Recompute (Layer 2 — offline, no blockchain needed):**
+    - `npx vitest run <recompute test path>` (TS)
+    - `pytest <recompute test path>` (Python)
+    - `cargo test -p agent-sdk-core --lib <erc_lowercase>` (Rust)
+
+    **Integration (Layer 1 — testkit workflow, required for ERCs with a contract interface):**
+    - Start anvil: `testkit/scripts/start-anvil.sh`
+    - Deploy the mock/real contract: `testkit/scripts/deploy.sh <category>/<ERCXXXX> <DeployScriptName>`
+    - Run TS integration tests: `npx vitest run`
+    - Run Python integration tests: `pytest`
+    - Run Rust integration test: `export ERCXXXX_ADDRESS=<addr> && cargo test --manifest-path rust/core/Cargo.toml --test <erc_lowercase>_integration -- --nocapture`
+      * The Rust test reads the contract address from `ERCXXXX_ADDRESS` env var and the signer key from `testkit/.anvil-accounts.json`. It must connect via alloy v2 to the deployed contract and call at least one read and one write method (if writable).
+      * If the Rust integration test fails, do NOT proceed — fix the code, re-deploy, and re-run until green.
+    - Run each language's *full* suite — shared anvil instance and deployer account across all ERCs can reveal cross-file issues (nonce races, etc.).
+    - Stop anvil: `testkit/scripts/stop-anvil.sh`
 
 ## What gets committed
 

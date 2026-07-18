@@ -74,14 +74,20 @@ Refresh SDK support for an ERC that `agent-sdk` already implements, after `agent
 
 11. **Amend the per-ERC READMEs.** Append a dated entry to both existing `README.md` files (TS and Python) describing what changed and why, including any additions or changes to the recompute layer and exports. Amend, don't overwrite — the change history is part of the record.
 
-12. **Run every affected test to green** — first the recompute tests (offline, no anvil), then the full integration tests:
-    - `npx vitest run <recompute test path>` (Layer 2 — offline, no anvil needed)
-    - `pytest <recompute test path>` (Layer 2 — offline, no anvil needed)
-    - Start anvil (`testkit/scripts/start-anvil.sh`), then:
-    - `npx vitest run` (Layer 1 integration tests + any other TS tests)
-    - `pytest` (Layer 1 integration tests + any other Python tests)
-    - Run each language's full suite, not just the changed ERC's tests, since shared test infrastructure (one anvil instance and deployer account across all ERCs) can surface cross-ERC issues only when everything runs together.
-    - Stop anvil (`testkit/scripts/stop-anvil.sh`) when done.
+12. **Run every affected test to green via testkit** — recompute tests first (offline), then deploy and run integration tests through the testkit harness. **Hard requirement: every ERC with a contract interface MUST pass its Rust integration test against a local anvil deployed via testkit.**
+
+    **Recompute (Layer 2 — offline):**
+    - `npx vitest run <recompute test path>` (TS)
+    - `pytest <recompute test path>` (Python)
+    - `cargo test -p agent-sdk-core --lib <erc_lowercase>` (Rust)
+
+    **Integration (Layer 1 — testkit workflow):**
+    - Start anvil: `testkit/scripts/start-anvil.sh`
+    - Deploy: `testkit/scripts/deploy.sh <category>/<ERCXXXX> <DeployScriptName>`
+    - `npx vitest run` (TS)
+    - `pytest` (Python)
+    - `export ERCXXXX_ADDRESS=<addr> && cargo test --manifest-path rust/core/Cargo.toml --test <erc_lowercase>_integration -- --nocapture` (Rust)
+    - Run full suites (cross-ERC anvil nonce issues), then stop anvil.
 
 ## What gets committed
 
