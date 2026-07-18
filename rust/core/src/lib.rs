@@ -1,5 +1,6 @@
 pub mod erc8004;
 pub mod erc8203;
+pub mod erc8274;
 pub mod erc8275;
 pub mod erc8281;
 pub mod erc8299;
