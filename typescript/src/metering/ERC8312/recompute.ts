@@ -48,3 +48,21 @@ export function computeRemainingHeadroom(
 ): number {
   return Math.max(0, cap - spent)
 }
+
+/**
+ * Verify that reported remaining matches cap - spent.
+ *
+ * ERC-8312 §IBudgetSubstrate: remaining(id) is recomputed, never trusted.
+ *
+ * @param cap - The maximum capacity.
+ * @param spent - The cumulative amount consumed.
+ * @param reportedRemaining - The reported remaining headroom.
+ * @returns true if the reported value matches the recomputed headroom.
+ */
+export function verifyRemaining(
+  cap: number,
+  spent: number,
+  reportedRemaining: number,
+): boolean {
+  return spent <= cap && computeRemainingHeadroom(cap, spent) === reportedRemaining
+}

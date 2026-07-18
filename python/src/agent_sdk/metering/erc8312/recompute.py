@@ -46,3 +46,20 @@ def compute_remaining_headroom(cap: int, spent: int) -> int:
         The remaining headroom (non-negative integer).
     """
     return max(0, cap - spent)
+
+
+def verify_remaining(cap: int, spent: int, reported_remaining: int) -> bool:
+    """
+    Verify that reported remaining matches cap - spent.
+
+    ERC-8312 §IBudgetSubstrate: remaining(id) is recomputed, never trusted.
+
+    Args:
+        cap: The maximum capacity.
+        spent: The cumulative amount consumed.
+        reported_remaining: The reported remaining headroom.
+
+    Returns:
+        True if the reported value matches the recomputed headroom.
+    """
+    return spent <= cap and compute_remaining_headroom(cap, spent) == reported_remaining

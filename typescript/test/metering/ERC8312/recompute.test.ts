@@ -6,6 +6,7 @@ import {
   checkStatefulBound,
   checkCursorHeadroom,
   computeRemainingHeadroom,
+  verifyRemaining,
 } from '../../../src/metering/ERC8312/recompute.js'
 
 // ── Inline golden vectors (primary) ──────────────────────────────────────
@@ -194,6 +195,14 @@ describe('checkCursorHeadroom (ERC-8312 Orbmis/headroom)', () => {
 
     it('full headroom when nothing spent', () => {
       expect(computeRemainingHeadroom(150, 0)).toBe(150)
+    })
+
+    it('verify: reported matches recomputed', () => {
+      expect(verifyRemaining(150, 60, 90)).toBe(true)
+    })
+
+    it('verify: misreport is rejected', () => {
+      expect(verifyRemaining(150, 60, 100)).toBe(false)
     })
   })
 })

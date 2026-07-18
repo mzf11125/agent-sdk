@@ -7,6 +7,7 @@ from agent_sdk.metering.erc8312.recompute import (
     check_cursor_headroom,
     check_stateful_bound,
     compute_remaining_headroom,
+    verify_remaining,
 )
 
 # ── Inline golden vectors (primary) ──────────────────────────────────────
@@ -165,3 +166,9 @@ class TestComputeRemainingHeadroom:
 
     def test_full_headroom(self):
         assert compute_remaining_headroom(150, 0) == 150
+
+    def test_verify_reported_matches(self):
+        assert verify_remaining(150, 60, 90) is True
+
+    def test_verify_misreport_rejected(self):
+        assert verify_remaining(150, 60, 100) is False
