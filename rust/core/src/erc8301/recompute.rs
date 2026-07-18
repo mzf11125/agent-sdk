@@ -1,5 +1,5 @@
-use alloy_primitives::{keccak256, Address, FixedBytes, U256};
 use alloy_core::sol;
+use alloy_primitives::{keccak256, Address, FixedBytes, U256};
 
 sol! {
     /// Solidity struct matching AgentTask encoding.
@@ -99,13 +99,19 @@ mod tests {
         let hash = compute_task_hash(
             1,
             U256::ZERO,
-            FixedBytes::<32>::from(hex!("1c8aff950685c2ed4bc3174f3472287b56d9517b9c948127319a09a7a36deac8")),
+            FixedBytes::<32>::from(hex!(
+                "1c8aff950685c2ed4bc3174f3472287b56d9517b9c948127319a09a7a36deac8"
+            )),
             U256::from(1700000000u64),
             U256::from(1700001000u64),
             &[], // empty prevReplyHashes — critical edge case
-            FixedBytes::<32>::from(hex!("00000000000000000000000000000000000000000000000000000000deadbeef")),
+            FixedBytes::<32>::from(hex!(
+                "00000000000000000000000000000000000000000000000000000000deadbeef"
+            )),
         );
-        let expected = FixedBytes::<32>::from(hex!("f1f404c844a4aff1d0d7d17cebb518a2d386197aad09ab86517eaa01448301ec"));
+        let expected = FixedBytes::<32>::from(hex!(
+            "f1f404c844a4aff1d0d7d17cebb518a2d386197aad09ab86517eaa01448301ec"
+        ));
         assert_eq!(hash, expected);
     }
 
@@ -113,7 +119,9 @@ mod tests {
     #[test]
     fn empty_inner_hash_is_keccak_of_empty() {
         let hash = compute_inner_hash(&[]);
-        let expected = FixedBytes::<32>::from(hex!("c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"));
+        let expected = FixedBytes::<32>::from(hex!(
+            "c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
+        ));
         assert_eq!(hash, expected);
     }
 
@@ -126,22 +134,68 @@ mod tests {
 
     #[test]
     fn task_hash_deterministic() {
-        let a = compute_task_hash(0, U256::ZERO, FixedBytes::ZERO, U256::ZERO, U256::ZERO, &[], FixedBytes::ZERO);
-        let b = compute_task_hash(0, U256::ZERO, FixedBytes::ZERO, U256::ZERO, U256::ZERO, &[], FixedBytes::ZERO);
+        let a = compute_task_hash(
+            0,
+            U256::ZERO,
+            FixedBytes::ZERO,
+            U256::ZERO,
+            U256::ZERO,
+            &[],
+            FixedBytes::ZERO,
+        );
+        let b = compute_task_hash(
+            0,
+            U256::ZERO,
+            FixedBytes::ZERO,
+            U256::ZERO,
+            U256::ZERO,
+            &[],
+            FixedBytes::ZERO,
+        );
         assert_eq!(a, b);
     }
 
     #[test]
     fn different_stage_different_hash() {
-        let a = compute_task_hash(0, U256::ZERO, FixedBytes::ZERO, U256::ZERO, U256::ZERO, &[], FixedBytes::ZERO);
-        let b = compute_task_hash(1, U256::ZERO, FixedBytes::ZERO, U256::ZERO, U256::ZERO, &[], FixedBytes::ZERO);
+        let a = compute_task_hash(
+            0,
+            U256::ZERO,
+            FixedBytes::ZERO,
+            U256::ZERO,
+            U256::ZERO,
+            &[],
+            FixedBytes::ZERO,
+        );
+        let b = compute_task_hash(
+            1,
+            U256::ZERO,
+            FixedBytes::ZERO,
+            U256::ZERO,
+            U256::ZERO,
+            &[],
+            FixedBytes::ZERO,
+        );
         assert_ne!(a, b);
     }
 
     #[test]
     fn reply_hash_vs_task_hash_different() {
-        let task = compute_task_hash(0, U256::ZERO, FixedBytes::ZERO, U256::ZERO, U256::ZERO, &[], FixedBytes::ZERO);
-        let reply = compute_reply_hash(FixedBytes::ZERO, U256::ZERO, Address::ZERO, &[], FixedBytes::ZERO);
+        let task = compute_task_hash(
+            0,
+            U256::ZERO,
+            FixedBytes::ZERO,
+            U256::ZERO,
+            U256::ZERO,
+            &[],
+            FixedBytes::ZERO,
+        );
+        let reply = compute_reply_hash(
+            FixedBytes::ZERO,
+            U256::ZERO,
+            Address::ZERO,
+            &[],
+            FixedBytes::ZERO,
+        );
         assert_ne!(task, reply);
     }
 }

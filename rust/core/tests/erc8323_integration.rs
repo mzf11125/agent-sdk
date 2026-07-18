@@ -1,5 +1,4 @@
 /// ERC-8323 integration tests — testkit workflow.
-
 use alloy::primitives::Address;
 use alloy::providers::ProviderBuilder;
 use alloy::sol;
@@ -22,11 +21,14 @@ fn anvil_key() -> String {
     if let Ok(key) = std::env::var("ANVIL_KEY") {
         return key;
     }
-    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../testkit/.anvil-accounts.json");
+    let path =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testkit/.anvil-accounts.json");
     let data = std::fs::read_to_string(&path).expect("cannot read anvil accounts file");
     let parsed: serde_json::Value = serde_json::from_str(&data).expect("invalid JSON");
-    parsed["accounts"][0]["privateKey"].as_str().expect("no account").to_string()
+    parsed["accounts"][0]["privateKey"]
+        .as_str()
+        .expect("no account")
+        .to_string()
 }
 
 fn contract_address() -> Address {
@@ -51,6 +53,10 @@ async fn bound_collection_reads() {
         .connect_http(ANVIL_RPC.parse().unwrap());
 
     let contract = IAgentSourceBinding::new(addr, provider);
-    let collection = contract.boundCollection().call().await.expect("boundCollection");
+    let collection = contract
+        .boundCollection()
+        .call()
+        .await
+        .expect("boundCollection");
     eprintln!("boundCollection = {collection:?}");
 }

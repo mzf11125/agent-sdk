@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from agent_sdk.settlement.erc8312.recompute import (
+from agent_sdk.metering.erc8312.recompute import (
     check_cursor_headroom,
     check_stateful_bound,
 )

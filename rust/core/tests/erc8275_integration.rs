@@ -6,7 +6,6 @@
 /// cargo test --manifest-path rust/core/Cargo.toml --test erc8275_integration -- --nocapture
 /// testkit/scripts/stop-anvil.sh
 /// ```
-
 use alloy::primitives::{Address, FixedBytes};
 use alloy::providers::ProviderBuilder;
 use alloy::sol;
@@ -33,11 +32,14 @@ fn anvil_key() -> String {
     if let Ok(key) = std::env::var("ANVIL_KEY") {
         return key;
     }
-    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../testkit/.anvil-accounts.json");
+    let path =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testkit/.anvil-accounts.json");
     let data = std::fs::read_to_string(&path).expect("cannot read anvil accounts file");
     let parsed: serde_json::Value = serde_json::from_str(&data).expect("invalid JSON");
-    parsed["accounts"][0]["privateKey"].as_str().expect("no account").to_string()
+    parsed["accounts"][0]["privateKey"]
+        .as_str()
+        .expect("no account")
+        .to_string()
 }
 
 fn contract_address() -> Address {
@@ -63,10 +65,20 @@ async fn get_reputation_reads_default() {
 
     let contract = IAgentReputation::new(addr, provider);
     let agent_id = FixedBytes::ZERO;
-    let rep = contract.getReputation(agent_id).call().await.expect("getReputation");
-    eprintln!("getReputation(zero) = completed={}, disputed={}, volume={}, lastActive={}, score={}",
-        rep.completedOrders, rep.disputedOrders, rep.totalVolume, rep.lastActiveAt, rep.score);
+    let rep = contract
+        .getReputation(agent_id)
+        .call()
+        .await
+        .expect("getReputation");
+    eprintln!(
+        "getReputation(zero) = completed={}, disputed={}, volume={}, lastActive={}, score={}",
+        rep.completedOrders, rep.disputedOrders, rep.totalVolume, rep.lastActiveAt, rep.score
+    );
 
-    let weight = contract.getDecayWeight(agent_id).call().await.expect("getDecayWeight");
+    let weight = contract
+        .getDecayWeight(agent_id)
+        .call()
+        .await
+        .expect("getDecayWeight");
     eprintln!("getDecayWeight(zero) = {weight}");
 }

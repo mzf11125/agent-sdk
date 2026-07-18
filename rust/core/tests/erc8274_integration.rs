@@ -2,7 +2,6 @@
 ///
 /// Deploy order: proofVerifier, agentVerifier, agentVerifiable (3 addresses).
 /// Use ERC8274_ADDRESSES env var: comma-separated in deploy order.
-
 use alloy::primitives::{Address, FixedBytes};
 use alloy::providers::ProviderBuilder;
 use alloy::sol;
@@ -34,11 +33,14 @@ fn anvil_key() -> String {
     if let Ok(key) = std::env::var("ANVIL_KEY") {
         return key;
     }
-    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../testkit/.anvil-accounts.json");
+    let path =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testkit/.anvil-accounts.json");
     let data = std::fs::read_to_string(&path).expect("cannot read anvil accounts file");
     let parsed: serde_json::Value = serde_json::from_str(&data).expect("invalid JSON");
-    parsed["accounts"][0]["privateKey"].as_str().expect("no account").to_string()
+    parsed["accounts"][0]["privateKey"]
+        .as_str()
+        .expect("no account")
+        .to_string()
 }
 
 fn addresses() -> Vec<Address> {
@@ -73,11 +75,27 @@ async fn proof_system_and_verify() {
     eprintln!("proofSystem = {system}");
 
     // AgentVerifiable
-    let trusted = verifiable.agentVerifier().call().await.expect("agentVerifier");
+    let trusted = verifiable
+        .agentVerifier()
+        .call()
+        .await
+        .expect("agentVerifier");
     eprintln!("agentVerifier = {trusted:?}");
 
     // AgentVerifier (broadcast)
-    let tx = agent.verify(FixedBytes::ZERO, FixedBytes::ZERO, FixedBytes::ZERO, FixedBytes::ZERO, vec![].into());
-    let receipt = tx.send().await.expect("verify").get_receipt().await.expect("receipt");
+    let tx = agent.verify(
+        FixedBytes::ZERO,
+        FixedBytes::ZERO,
+        FixedBytes::ZERO,
+        FixedBytes::ZERO,
+        vec![].into(),
+    );
+    let receipt = tx
+        .send()
+        .await
+        .expect("verify")
+        .get_receipt()
+        .await
+        .expect("receipt");
     eprintln!("agent verify tx: {:?}", receipt.transaction_hash);
 }

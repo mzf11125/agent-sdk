@@ -6,7 +6,6 @@
 /// cargo test --manifest-path rust/core/Cargo.toml --test erc8301_integration -- --nocapture
 /// testkit/scripts/stop-anvil.sh
 /// ```
-
 use alloy::primitives::{Address, Bytes, FixedBytes, U256};
 use alloy::providers::ProviderBuilder;
 use alloy::sol;
@@ -31,8 +30,8 @@ fn anvil_key() -> String {
     if let Ok(key) = std::env::var("ANVIL_KEY") {
         return key;
     }
-    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../testkit/.anvil-accounts.json");
+    let path =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testkit/.anvil-accounts.json");
     if let Ok(data) = std::fs::read_to_string(&path) {
         if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&data) {
             if let Some(key) = parsed["accounts"][0]["privateKey"].as_str() {
@@ -44,10 +43,15 @@ fn anvil_key() -> String {
 }
 
 fn contract_address() -> Address {
-    let addr = std::env::var("ERC8301_ADDRESS")
-        .unwrap_or_default();
-    if addr.is_empty() { return Address::ZERO; }
-    let addr = if !addr.starts_with("0x") { format!("0x{addr}") } else { addr };
+    let addr = std::env::var("ERC8301_ADDRESS").unwrap_or_default();
+    if addr.is_empty() {
+        return Address::ZERO;
+    }
+    let addr = if !addr.starts_with("0x") {
+        format!("0x{addr}")
+    } else {
+        addr
+    };
     addr.parse().expect("invalid address")
 }
 
@@ -69,11 +73,21 @@ async fn run_and_read_result() {
 
     let expires_at = U256::from(2000000000u64);
     let tx = contract.run(FixedBytes::ZERO, Bytes::default(), expires_at);
-    let receipt = tx.send().await.expect("run").get_receipt().await.expect("receipt");
+    let receipt = tx
+        .send()
+        .await
+        .expect("run")
+        .get_receipt()
+        .await
+        .expect("receipt");
     eprintln!("run tx: {:?}", receipt.transaction_hash);
 
     // run() returns bytes32 — decode from the tx return data via a helper:
     // for now, just verify the transaction succeeded and result() works with a zero runId
-    let r = contract.result(FixedBytes::ZERO).call().await.expect("result");
+    let r = contract
+        .result(FixedBytes::ZERO)
+        .call()
+        .await
+        .expect("result");
     eprintln!("result(zero) → status = {:?}", r._0);
 }

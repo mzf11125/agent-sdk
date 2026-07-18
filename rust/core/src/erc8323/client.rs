@@ -1,5 +1,5 @@
-use alloy_primitives::FixedBytes;
 use crate::DataProvider;
+use alloy_primitives::FixedBytes;
 
 /// ERC-8323 Source-Token Agent Binding client.
 ///
@@ -17,7 +17,9 @@ impl<D: DataProvider> SourceBindingClient<D> {
     pub fn get_source_nft(&self, agent_id: FixedBytes<32>) -> Result<Vec<u8>, String> {
         let key = [b"erc8323:getSourceNFT:", agent_id.as_slice()].concat();
         let data = self.provider.fetch(&key);
-        if data.is_empty() { return Err("source NFT not found".into()); }
+        if data.is_empty() {
+            return Err("source NFT not found".into());
+        }
         Ok(data)
     }
 

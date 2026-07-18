@@ -25,10 +25,14 @@ mod tests {
     /// expected: 0xdc568bd1cbacdd1ead8231e9d3d6f4e475f5168f3cc9f72b31935d46cfdd48f7
     #[test]
     fn golden_verdict_hash() {
-        let job_id = FixedBytes::<32>::from(hex!("bc01b40fe7a3509f35470053d4bc1844d50c9782546cf0fc11154adcb90caa56"));
+        let job_id = FixedBytes::<32>::from(hex!(
+            "bc01b40fe7a3509f35470053d4bc1844d50c9782546cf0fc11154adcb90caa56"
+        ));
         let text = "No intermediaries required, cryptographic verification only.";
         let hash = compute_verdict_hash(job_id, text);
-        let expected = FixedBytes::<32>::from(hex!("dc568bd1cbacdd1ead8231e9d3d6f4e475f5168f3cc9f72b31935d46cfdd48f7"));
+        let expected = FixedBytes::<32>::from(hex!(
+            "dc568bd1cbacdd1ead8231e9d3d6f4e475f5168f3cc9f72b31935d46cfdd48f7"
+        ));
         assert_eq!(hash, expected);
     }
 
@@ -45,7 +49,9 @@ mod tests {
     fn different_job_different_hash() {
         let text = "same text";
         let a = compute_verdict_hash(FixedBytes::ZERO, text);
-        let other = FixedBytes::<32>::from(hex!("0000000000000000000000000000000000000000000000000000000000000001"));
+        let other = FixedBytes::<32>::from(hex!(
+            "0000000000000000000000000000000000000000000000000000000000000001"
+        ));
         let b = compute_verdict_hash(other, text);
         assert_ne!(a, b);
     }

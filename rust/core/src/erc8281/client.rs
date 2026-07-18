@@ -1,5 +1,5 @@
-use alloy_primitives::FixedBytes;
 use crate::DataProvider;
+use alloy_primitives::FixedBytes;
 
 /// ERC-8281 Observation Commitment Protocol client.
 ///

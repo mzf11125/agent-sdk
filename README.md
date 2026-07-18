@@ -30,7 +30,7 @@ Off-chain SDKs (TypeScript, Python) for the ERCs defined in [trustless-ai/agent-
 | [ERC-8301](https://github.com/trustless-ai/agent-ercs/tree/main/contracts/execution/ERC8301) — Agent Execution | `execution` | `AgentWorkflowClient` | `computeTaskHash`, `computeReplyHash` |
 | [ERC-8203](https://github.com/trustless-ai/agent-ercs/tree/main/contracts/settlement/ERC8203) — Consult Escrow | `settlement` | `ConsultEscrowClient` | `computeVerdictHash` |
 | [ERC-8275](https://github.com/trustless-ai/agent-ercs/tree/main/contracts/reputation/ERC8275) — Agent Reputation | `reputation` | `AgentReputationClient` | `computeWinRate` |
-| [ERC-8312](https://github.com/trustless-ai/agent-ercs/tree/main/contracts/settlement/ERC8312) — Cap Conservation | `settlement` | — | `checkStatefulBound`, `checkCursorHeadroom` |
+| [ERC-8312](https://github.com/trustless-ai/agent-ercs/tree/main/contracts/metering/ERC8312) — Bounded Agent Actions | `metering` | `BoundedAgentActionClient`, `BudgetSubstrateClient`, `ContestableEnvelopeClient` | `checkStatefulBound`, `checkCursorHeadroom` |
 
 > **Contract Calls** are typed clients that call deployed contracts. **Recompute** functions are pure, stateless, and run without an RPC endpoint — they reproduce the same deterministic computation the contract performs, verified against golden conformance vectors.
 
