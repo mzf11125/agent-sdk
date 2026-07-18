@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url'
 import {
   checkStatefulBound,
   checkCursorHeadroom,
+  computeRemainingHeadroom,
 } from '../../../src/metering/ERC8312/recompute.js'
 
 // ── Inline golden vectors (primary) ──────────────────────────────────────
@@ -179,6 +180,20 @@ describe('checkCursorHeadroom (ERC-8312 Orbmis/headroom)', () => {
 
     it('zero aggregate within cap', () => {
       expect(checkCursorHeadroom(0, 0)).toBe(true)
+    })
+  })
+
+  describe('computeRemainingHeadroom (IBudgetSubstrate)', () => {
+    it('normal headroom', () => {
+      expect(computeRemainingHeadroom(150, 60)).toBe(90)
+    })
+
+    it('exhausted returns zero', () => {
+      expect(computeRemainingHeadroom(150, 200)).toBe(0)
+    })
+
+    it('full headroom when nothing spent', () => {
+      expect(computeRemainingHeadroom(150, 0)).toBe(150)
     })
   })
 })

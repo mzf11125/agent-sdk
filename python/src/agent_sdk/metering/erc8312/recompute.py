@@ -29,3 +29,20 @@ def check_cursor_headroom(aggregate: int, cap: int) -> bool:
         True if the aggregate is within the cap, False otherwise.
     """
     return aggregate <= cap
+
+
+def compute_remaining_headroom(cap: int, spent: int) -> int:
+    """
+    Compute the remaining headroom from cap and cumulative spent.
+
+    ERC-8312 §IBudgetSubstrate: remaining = cap - spent.
+    Returns 0 if spent exceeds cap (exhausted or inactive envelope).
+
+    Args:
+        cap: The maximum capacity (non-negative integer).
+        spent: The cumulative amount consumed (non-negative integer).
+
+    Returns:
+        The remaining headroom (non-negative integer).
+    """
+    return max(0, cap - spent)

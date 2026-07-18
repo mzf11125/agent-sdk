@@ -6,6 +6,7 @@ import pytest
 from agent_sdk.metering.erc8312.recompute import (
     check_cursor_headroom,
     check_stateful_bound,
+    compute_remaining_headroom,
 )
 
 # ── Inline golden vectors (primary) ──────────────────────────────────────
@@ -151,3 +152,16 @@ class TestCheckCursorHeadroom:
     def test_zero_aggregate(self):
         """Zero aggregate within zero cap."""
         assert check_cursor_headroom(0, 0) is True
+
+
+class TestComputeRemainingHeadroom:
+    """ERC-8312 §IBudgetSubstrate: remaining = cap - spent."""
+
+    def test_normal_headroom(self):
+        assert compute_remaining_headroom(150, 60) == 90
+
+    def test_exhausted_returns_zero(self):
+        assert compute_remaining_headroom(150, 200) == 0
+
+    def test_full_headroom(self):
+        assert compute_remaining_headroom(150, 0) == 150

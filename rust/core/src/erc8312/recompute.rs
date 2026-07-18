@@ -8,6 +8,12 @@ pub fn check_cursor_headroom(aggregate: u64, cap: u64) -> bool {
     aggregate <= cap
 }
 
+/// ERC-8312 §IBudgetSubstrate: remaining = cap - spent.
+/// Returns 0 if spent exceeds cap (exhausted or inactive envelope).
+pub fn compute_remaining_headroom(cap: u64, spent: u64) -> u64 {
+    cap.saturating_sub(spent)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -39,5 +45,21 @@ mod tests {
     fn zero_aggregate_always_holds() {
         assert!(check_cursor_headroom(0, 0));
         assert!(check_cursor_headroom(0, 1));
+    }
+
+    /// Spec-aligned: remaining = cap - spent (IBudgetSubstrate)
+    #[test]
+    fn remaining_headroom_normal() {
+        assert_eq!(compute_remaining_headroom(150, 60), 90);
+    }
+
+    #[test]
+    fn remaining_headroom_exhausted() {
+        assert_eq!(compute_remaining_headroom(150, 200), 0);
+    }
+
+    #[test]
+    fn remaining_headroom_full() {
+        assert_eq!(compute_remaining_headroom(150, 0), 150);
     }
 }

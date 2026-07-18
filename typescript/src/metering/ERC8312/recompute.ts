@@ -31,3 +31,20 @@ export function checkCursorHeadroom(
 ): boolean {
   return aggregate <= cap
 }
+
+/**
+ * Compute the remaining headroom from cap and cumulative spent.
+ *
+ * ERC-8312 §IBudgetSubstrate: remaining = cap - spent.
+ * Returns 0 if spent exceeds cap (exhausted or inactive envelope).
+ *
+ * @param cap - The maximum capacity (non-negative integer).
+ * @param spent - The cumulative amount consumed (non-negative integer).
+ * @returns The remaining headroom (non-negative integer).
+ */
+export function computeRemainingHeadroom(
+  cap: number,
+  spent: number,
+): number {
+  return Math.max(0, cap - spent)
+}
