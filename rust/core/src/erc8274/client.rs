@@ -1,4 +1,6 @@
 use crate::DataProvider;
+use alloc::string::{String, ToString};
+use alloc::vec::Vec;
 use alloy_primitives::FixedBytes;
 
 /// ERC-8274 ProofVerifier client.

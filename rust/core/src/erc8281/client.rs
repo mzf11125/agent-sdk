@@ -1,4 +1,5 @@
 use crate::DataProvider;
+use alloc::string::String;
 use alloy_primitives::FixedBytes;
 
 /// ERC-8281 Observation Commitment Protocol client.

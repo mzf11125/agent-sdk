@@ -1,4 +1,6 @@
 use crate::DataProvider;
+use alloc::string::String;
+use alloc::vec::Vec;
 use alloy_primitives::FixedBytes;
 
 /// ERC-8312 BoundedAgentAction client (envelope lifecycle).

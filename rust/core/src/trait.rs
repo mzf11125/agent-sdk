@@ -1,3 +1,5 @@
+use alloc::vec::Vec;
+
 /// Data that a host or guest provider can resolve.
 /// Op-succinct style: preimage key → data bytes.
 pub trait DataProvider {

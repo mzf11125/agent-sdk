@@ -1,3 +1,4 @@
+#![cfg(feature = "std")]
 /// ERC-8263 integration tests — testkit workflow.
 ///
 /// ```bash

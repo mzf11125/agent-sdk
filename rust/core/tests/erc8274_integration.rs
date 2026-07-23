@@ -1,3 +1,4 @@
+#![cfg(feature = "std")]
 /// ERC-8274 integration tests — testkit workflow.
 ///
 /// Deploy order: proofVerifier, agentVerifier, agentVerifiable (3 addresses).
@@ -55,10 +56,10 @@ fn addresses() -> Vec<Address> {
 #[tokio::test]
 async fn proof_system_and_verify() {
     let addrs = addresses();
-    if addrs.len() < 3 {
-        eprintln!("SKIP: ERC8274_ADDRESSES not set (needs 3 addresses)");
-        return;
-    }
+    assert!(
+        addrs.len() >= 3,
+        "ERC8274_ADDRESSES not set (needs 3 addresses) — deploy first via testkit/scripts/deploy.sh"
+    );
 
     let key = anvil_key();
     let signer: alloy::signers::local::PrivateKeySigner = key.parse().expect("invalid key");

@@ -1,3 +1,4 @@
+#![cfg(feature = "std")]
 /// ERC-8275 integration tests — testkit workflow.
 ///
 /// ```bash
@@ -52,10 +53,10 @@ fn contract_address() -> Address {
 #[tokio::test]
 async fn get_reputation_reads_default() {
     let addr = contract_address();
-    if addr.is_zero() {
-        eprintln!("SKIP: ERC8275_ADDRESS not set");
-        return;
-    }
+    assert!(
+        !addr.is_zero(),
+        "ERC8275_ADDRESS not set — deploy first via testkit/scripts/deploy.sh reputation/ERC8275 DeployERC8275"
+    );
 
     let key = anvil_key();
     let signer: alloy::signers::local::PrivateKeySigner = key.parse().expect("invalid key");

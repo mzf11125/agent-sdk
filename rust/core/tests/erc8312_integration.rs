@@ -1,3 +1,4 @@
+#![cfg(feature = "std")]
 /// ERC-8312 integration tests — testkit workflow.
 ///
 /// Deploy order: boundedAgentAction, budgetSubstrate, contestableEnvelope

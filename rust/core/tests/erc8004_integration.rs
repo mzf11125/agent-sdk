@@ -1,3 +1,4 @@
+#![cfg(feature = "std")]
 /// ERC-8004 integration tests — testkit workflow.
 /// Prerequisites:
 /// ```bash
@@ -46,10 +47,10 @@ fn registry_address() -> Address {
 #[tokio::test]
 async fn register_and_read_owner() {
     let addr = registry_address();
-    if addr.is_zero() {
-        eprintln!("SKIP: ERC8004_ADDRESS not set");
-        return;
-    }
+    assert!(
+        !addr.is_zero(),
+        "ERC8004_ADDRESS not set — deploy first via testkit/scripts/deploy.sh identity/ERC8004 DeployERC8004"
+    );
     let key = anvil_key();
     let signer: alloy::signers::local::PrivateKeySigner = key.parse().expect("invalid key");
     let provider = ProviderBuilder::new()

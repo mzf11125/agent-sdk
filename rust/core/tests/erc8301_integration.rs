@@ -1,3 +1,4 @@
+#![cfg(feature = "std")]
 /// ERC-8301 integration tests — testkit workflow.
 ///
 /// ```bash
@@ -58,10 +59,10 @@ fn contract_address() -> Address {
 #[tokio::test]
 async fn run_and_read_result() {
     let addr = contract_address();
-    if addr.is_zero() {
-        eprintln!("SKIP: ERC8301_ADDRESS not set and no fallback");
-        return;
-    }
+    assert!(
+        !addr.is_zero(),
+        "ERC8301_ADDRESS not set — deploy first via testkit/scripts/deploy.sh execution/ERC8301 DeployERC8301"
+    );
 
     let key = anvil_key();
     let signer: alloy::signers::local::PrivateKeySigner = key.parse().expect("invalid key");

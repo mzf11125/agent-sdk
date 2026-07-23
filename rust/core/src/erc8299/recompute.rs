@@ -1,3 +1,4 @@
+use alloc::vec::Vec;
 use alloy_primitives::{keccak256, FixedBytes};
 
 /// ERC-8299 §45: raw_input_hash = keccak256(raw_user_input)

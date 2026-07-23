@@ -1,3 +1,4 @@
+#![cfg(feature = "std")]
 /// ERC-8323 integration tests — testkit workflow.
 use alloy::primitives::Address;
 use alloy::providers::ProviderBuilder;
@@ -41,10 +42,10 @@ fn contract_address() -> Address {
 #[tokio::test]
 async fn bound_collection_reads() {
     let addr = contract_address();
-    if addr.is_zero() {
-        eprintln!("SKIP: ERC8323_ADDRESS not set");
-        return;
-    }
+    assert!(
+        !addr.is_zero(),
+        "ERC8323_ADDRESS not set — deploy first via testkit/scripts/deploy.sh"
+    );
 
     let key = anvil_key();
     let signer: alloy::signers::local::PrivateKeySigner = key.parse().expect("invalid key");
