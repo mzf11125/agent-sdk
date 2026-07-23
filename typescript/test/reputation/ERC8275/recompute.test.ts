@@ -12,9 +12,9 @@ import { computeWinRate } from '../../../src/reputation/ERC8275/recompute.js'
 const INLINE_VECTORS = [
   {
     id: '8275-reputation',
-    label: 'computeWinRate with 16 wins, 15 losses',
+    label: 'computeWinRate with 16 wins, 15 losses → 5161 basis points (0.5161)',
     inputs: { wins: 16, losses: 15 },
-    expected: 0.5161,
+    expected: 5161,
   },
 ]
 
@@ -72,7 +72,8 @@ describe('computeWinRate (ERC-8275 recompute)', () => {
         () => {
           const wins = Number(vec.inputs.commit_gated_wins)
           const losses = Number(vec.inputs.commit_gated_losses)
-          const expected = vec.expected as number
+          // Kit vectors use float (0.5161), SDK returns basis points (5161)
+          const expected = Math.round((vec.expected as number) * 10000)
           expect(computeWinRate(wins, losses)).toBe(expected)
         },
       )
@@ -85,7 +86,11 @@ describe('computeWinRate (ERC-8275 recompute)', () => {
     })
 
     it('handles zero losses (non-zero wins)', () => {
-      expect(computeWinRate(16, 0)).toBe(1)
+      expect(computeWinRate(16, 0)).toBe(10000)
+    })
+
+    it('integer division truncates (1/3 = 3333 bps)', () => {
+      expect(computeWinRate(1, 2)).toBe(3333)
     })
 
     it('throws when both wins and losses are zero', () => {
