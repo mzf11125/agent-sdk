@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 alloy-core = { version = "0.8", default-features = false, features = ["sol-types"] }
 alloy-primitives = { version = "0.8", default-features = false }
+sha2 = { version = "0.10", default-features = false }
 
 [dev-dependencies]
 alloy = { version = "2", features = ["full"] }
