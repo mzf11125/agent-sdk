@@ -1,6 +1,6 @@
 ---
 name: update-erc
-description: Refresh existing TypeScript and Python SDK clients after an ERC's interface or semantics changed in agent-ercs, re-classifying recompute-to-verify capability only if the change affects it, and adding or updating pure recompute functions (Layer 2).
+description: Refresh existing TypeScript, Python, and Rust SDK clients after an ERC's interface or semantics changed in agent-ercs, re-classifying recompute-to-verify capability only if the change affects it, and adding or updating pure recompute functions (Layer 2).
 ---
 
 # Update ERC
@@ -13,11 +13,10 @@ Refresh SDK support for an ERC that `agent-sdk` already implements, after `agent
 
 1. **Determine what changed.** If not specified, ask which ERC changed in `agent-ercs`, and what changed (or point to the commit/PR). Check out the relevant `agent-ercs` ref if it differs from what's currently checked out.
 
-2. **Diff against what's implemented.** Compare the current `agent-ercs` interface against the existing clients under `typescript/src/<category>/<ERCXXXX>/` and `python/src/agent_sdk/<category>/<ercxxxx>/`. Also check whether the recompute layer files exist:
-   - `typescript/src/<category>/<ERCXXXX>/recompute.ts`
-   - `python/src/agent_sdk/<category>/<ercxxxx>/recompute.py`
-   - `typescript/test/<category>/<ERCXXXX>/recompute.test.ts`
-   - `python/tests/<category>/<ercxxxx>/test_recompute.py`
+2. **Diff against what's implemented.** Compare the current `agent-ercs` interface against the existing clients for all three languages. Check whether the recompute layer files exist:
+   - `typescript/src/<category>/<ERCXXXX>/recompute.ts` + test
+   - `python/src/agent_sdk/<category>/<ercxxxx>/recompute.py` + test
+   - `rust/core/src/<erc_lowercase>/recompute.rs` (inline `#[cfg(test)]`)
    
    If they're missing and the ERC has spec changes (or had recompute-able claims that were never extracted), flag that Layer 2 needs to be created.
 
@@ -33,23 +32,28 @@ Refresh SDK support for an ERC that `agent-sdk` already implements, after `agent
 
 6. **Update or create the recompute layer (Layer 2).**
 
-   **If files already exist:** Update the affected functions in `recompute.ts` / `recompute.py` and their tests based on any spec changes. Follow the naming convention (camelCase for TS, snake_case for Python), viem top-level import style, test-per-vector granularity, `eth_utils.keccak` preference, `__init__.py` generation, and edge-case checklist from `add-erc`'s step 7. Append new recompute functions if the ERC gained new deterministically computable claims. Amend tests with new golden vectors from the conformance file. After making changes, scan each modified file for unused imports and remove them before finalizing.
+   **If files already exist:** Update the affected functions in `recompute.ts` / `recompute.py` / `recompute.rs` and their tests based on any spec changes. Follow the naming convention (camelCase for TS, snake_case for Python, snake_case for Rust), viem top-level import style, test-per-vector granularity, `eth_utils.keccak` preference, `__init__.py` generation, Rust `#[cfg(test)]` inline test pattern, and edge-case checklist from `add-erc`'s step 7. Append new recompute functions if the ERC gained new deterministically computable claims. Amend tests with new golden vectors from the conformance file. After making changes, scan each modified file for unused imports and remove them before finalizing.
 
-   **If files don't exist but the ERC has pure recompute claims:** Generate them fresh following the `add-erc` skill's step 7 — stateless functions tested against golden conformance vectors, no contract dependencies. Apply the same conventions: camelCase TS / snake_case Python naming, top-level `'viem'` imports only, `eth_utils.keccak` for Python hashing, guard-clause pattern for missing vectors, one test-per-vector granularity, `__init__.py` for new Python test dirs, edge-case checklist by operation type, and the post-generation unused-import scan.
+   **If files don't exist but the ERC has pure recompute claims:** Generate them fresh following the `add-erc` skill's step 7 — stateless functions tested against golden conformance vectors, no contract dependencies. Apply the same conventions for all three languages (TS camelCase, Python/Rust snake_case, top-level `'viem'` imports for TS, `eth_utils.keccak` for Python, `alloy-core` primitives for Rust, guard-clause pattern for missing vectors, one test-per-vector granularity, `__init__.py` for new Python test dirs, Rust `#[cfg(test)]` inline tests, edge-case checklist by operation type, and post-generation unused-import scan).
 
    **If the ERC has no pure recompute claims:** Confirm that no recompute files are needed and move on.
 
 7. **Run recompute tests separately first.** Before touching any contract infrastructure:
    - `npx vitest run <path-to-recompute.test.ts>` (TS)
    - `pytest <path-to-test_recompute.py>` (Python)
+   - `cargo test -p agent-sdk-core` (Rust)
    
    These must pass without any blockchain node. If they fail, debug the recompute implementation before proceeding to Layer 1.
 
 8. **Update Layer 1 (contract wrappers).**
-   - Before writing the client, check existing ERC clients in the SAME category (identity, verify, etc.) for wallet and constructor patterns and match them. Specifically:
-     * WalletClient: use the `createWalletClient({ chain: foundry, transport, account })` pattern (see ERC-8004, ERC-8274) — don't invent `{ account }` plain objects or other ad-hoc patterns.
-     * Constructor: match the existing `(config, account)` signature pattern from the same category.
-   - Update the affected client code and tests in both languages.
+   - **TypeScript and Python:**
+     * Before writing the client, check existing ERC clients in the SAME category (identity, verify, etc.) for wallet and constructor patterns and match them. Specifically:
+       * WalletClient: use the `createWalletClient({ chain: foundry, transport, account })` pattern (see ERC-8004, ERC-8274) — don't invent `{ account }` plain objects or other ad-hoc patterns.
+       * Constructor: match the existing `(config, account)` signature pattern from the same category.
+     * Update the affected client code and tests in both languages.
+   - **Rust:**
+     * If `rust/core/src/<erc_lowercase>/client.rs` exists, update it to match any spec changes. If it doesn't exist but the ERC now has a contract interface, generate it following `add-erc`'s step 9 (Rust pattern: generic `Client<D: DataProvider>`, no direct alloy transport).
+     * If the recompute function signatures changed, update `recompute.rs` and its inline `#[cfg(test)]` tests.
    - Update `testkit/script/<category>/<ERCXXXX>/Deploy<ERCXXXX>.s.sol` (and the mock in `testkit/contracts/mocks/<category>/<ERCXXXX>/`, if one exists) if the contract's constructor or initialization interface changed.
 
 9. **Wire up package exports.** After both layers are updated, ensure the new or changed files are properly exported.
@@ -62,18 +66,28 @@ Refresh SDK support for an ERC that `agent-sdk` already implements, after `agent
     - Update the ERC module's `__init__.py` (`python/src/agent_sdk/<category>/<ercxxxx>/__init__.py`) to export any new public classes or functions. If it doesn't exist yet, create it following the pattern in `python/src/agent_sdk/identity/erc8004/__init__.py`.
     - Update the category-level `__init__.py` if the new ERC isn't referenced there yet.
 
+    **Rust:**
+    - If the ERC module is new or the `pub mod <erc_lowercase>;` line is missing from `rust/core/src/lib.rs`, add it.
+    - If the recompute module or client module were added to this ERC, update `rust/core/src/<erc_lowercase>/mod.rs` to export them.
+
 10. **Update root README.** If the ERC is newly supported (wasn't in the "Supported ERCs" table before), append it to the table in the repo root `README.md`. Match the existing row format: ERC name with link to agent-ercs, category, Contract Calls column (list client classes or `—`), Recompute column (list recompute functions or `—`). If the ERC already exists in the table, update its row to reflect any changes (new clients, new recompute functions). Insert or keep in alphabetical order within its category.
 
 11. **Amend the per-ERC READMEs.** Append a dated entry to both existing `README.md` files (TS and Python) describing what changed and why, including any additions or changes to the recompute layer and exports. Amend, don't overwrite — the change history is part of the record.
 
-12. **Run every affected test to green** — first the recompute tests (offline, no anvil), then the full integration tests:
-    - `npx vitest run <recompute test path>` (Layer 2 — offline, no anvil needed)
-    - `pytest <recompute test path>` (Layer 2 — offline, no anvil needed)
-    - Start anvil (`testkit/scripts/start-anvil.sh`), then:
-    - `npx vitest run` (Layer 1 integration tests + any other TS tests)
-    - `pytest` (Layer 1 integration tests + any other Python tests)
-    - Run each language's full suite, not just the changed ERC's tests, since shared test infrastructure (one anvil instance and deployer account across all ERCs) can surface cross-ERC issues only when everything runs together.
-    - Stop anvil (`testkit/scripts/stop-anvil.sh`) when done.
+12. **Run every affected test to green via testkit** — recompute tests first (offline), then deploy and run integration tests through the testkit harness. **Hard requirement: every ERC with a contract interface MUST pass its Rust integration test against a local anvil deployed via testkit.**
+
+    **Recompute (Layer 2 — offline):**
+    - `npx vitest run <recompute test path>` (TS)
+    - `pytest <recompute test path>` (Python)
+    - `cargo test -p agent-sdk-core --lib <erc_lowercase>` (Rust)
+
+    **Integration (Layer 1 — testkit workflow):**
+    - Start anvil: `testkit/scripts/start-anvil.sh`
+    - Deploy: `testkit/scripts/deploy.sh <category>/<ERCXXXX> <DeployScriptName>`
+    - `npx vitest run` (TS)
+    - `pytest` (Python)
+    - `export ERCXXXX_ADDRESS=<addr> && cargo test --manifest-path rust/core/Cargo.toml --test <erc_lowercase>_integration -- --nocapture` (Rust)
+    - Run full suites (cross-ERC anvil nonce issues), then stop anvil.
 
 ## What gets committed
 

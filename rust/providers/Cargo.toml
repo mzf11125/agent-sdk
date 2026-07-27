@@ -1,0 +1,9 @@
+[package]
+name = "agent-sdk-providers"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+agent-sdk-core = { path = "../core" }
+alloy = { version = "2", features = ["full"] }
+tokio = { version = "1", features = ["full"] }

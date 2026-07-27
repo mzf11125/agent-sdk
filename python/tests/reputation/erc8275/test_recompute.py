@@ -6,16 +6,15 @@ import pytest
 from agent_sdk.reputation.erc8275.recompute import compute_win_rate
 
 # ── Inline golden vectors (primary) ──────────────────────────────────────
-# These reproduce the vectors from recompute-kit/conformance/agent-flow.vectors.json
-# for step "8275/reputation". They are duplicated here so tests pass even
-# when recompute-kit is not present on disk.
+# Convention: basis points (10000 = 1.0, 5161 = 0.5161).
+# Exact integer division, half-away-from-zero, never a language float round().
 
 INLINE_VECTORS = [
     {
         "id": "8275-reputation",
-        "label": "computeWinRate with 16 wins, 15 losses",
+        "label": "computeWinRate with 16 wins, 15 losses → 5161 bps (0.5161)",
         "inputs": {"wins": 16, "losses": 15},
-        "expected": 0.5161,
+        "expected": 5161,
     },
 ]
 
@@ -41,7 +40,7 @@ def _conformance_vectors():
 
 
 class TestComputeWinRate:
-    """ERC-8275 recompute: winRate = gated_wins / (gated_wins + gated_losses)."""
+    """ERC-8275 recompute: winRate = wins * 10000 / (wins + losses) (basis points)."""
 
     @pytest.mark.parametrize(
         "vec",
@@ -65,17 +64,20 @@ class TestComputeWinRate:
             label = f"{vec['id']}: {vec.get('desc', vec.get('spec', '(no description)'))}"
             wins = vec["inputs"]["commit_gated_wins"]
             losses = vec["inputs"]["commit_gated_losses"]
-            assert compute_win_rate(wins, losses) == vec["expected"], label
+            # Kit vectors use float (0.5161), SDK returns basis points (5161)
+            expected_bps = int(round(vec["expected"] * 10000))
+            assert compute_win_rate(wins, losses) == expected_bps, label
 
     def test_zero_wins(self):
-        """Zero wins with non-zero losses produces 0.0."""
-        assert compute_win_rate(0, 15) == 0.0
+        assert compute_win_rate(0, 15) == 0
 
     def test_zero_losses(self):
-        """Zero losses with non-zero wins produces 1.0."""
-        assert compute_win_rate(16, 0) == 1.0
+        assert compute_win_rate(16, 0) == 10000
+
+    def test_integer_division_truncates(self):
+        # 1/3 = 3333 basis points
+        assert compute_win_rate(1, 2) == 3333
 
     def test_both_zero_raises(self):
-        """Both wins and losses zero raises ValueError."""
         with pytest.raises(ValueError):
             compute_win_rate(0, 0)

@@ -1,0 +1,17 @@
+[package]
+name = "agent-sdk-core"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+alloy-core = { version = "0.8", default-features = false, features = ["sol-types"] }
+alloy-primitives = { version = "0.8", default-features = false }
+
+[dev-dependencies]
+alloy = { version = "2", features = ["full"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt", "macros"] }
+
+[features]
+default = ["std"]
+std = []

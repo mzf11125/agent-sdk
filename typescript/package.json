@@ -71,6 +71,14 @@
     "./anchor/ERC8263": {
       "types": "./dist/anchor/ERC8263/index.d.ts",
       "default": "./dist/anchor/ERC8263/index.js"
+    },
+    "./metering/ERC8312": {
+      "types": "./dist/metering/ERC8312/index.d.ts",
+      "default": "./dist/metering/ERC8312/index.js"
+    },
+    "./metering/ERC8312/recompute": {
+      "types": "./dist/metering/ERC8312/recompute.d.ts",
+      "default": "./dist/metering/ERC8312/recompute.js"
     }
   },
   "scripts": {

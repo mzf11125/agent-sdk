@@ -3,9 +3,11 @@ from pathlib import Path
 
 import pytest
 
-from agent_sdk.settlement.erc8312.recompute import (
+from agent_sdk.metering.erc8312.recompute import (
     check_cursor_headroom,
     check_stateful_bound,
+    compute_remaining_headroom,
+    verify_remaining,
 )
 
 # ── Inline golden vectors (primary) ──────────────────────────────────────
@@ -151,3 +153,22 @@ class TestCheckCursorHeadroom:
     def test_zero_aggregate(self):
         """Zero aggregate within zero cap."""
         assert check_cursor_headroom(0, 0) is True
+
+
+class TestComputeRemainingHeadroom:
+    """ERC-8312 §IBudgetSubstrate: remaining = cap - spent."""
+
+    def test_normal_headroom(self):
+        assert compute_remaining_headroom(150, 60) == 90
+
+    def test_exhausted_returns_zero(self):
+        assert compute_remaining_headroom(150, 200) == 0
+
+    def test_full_headroom(self):
+        assert compute_remaining_headroom(150, 0) == 150
+
+    def test_verify_reported_matches(self):
+        assert verify_remaining(150, 60, 90) is True
+
+    def test_verify_misreport_rejected(self):
+        assert verify_remaining(150, 60, 100) is False

@@ -1,6 +1,6 @@
 ---
 name: add-erc
-description: Generate TypeScript and Python SDK clients for an ERC defined in agent-ercs that doesn't have SDK support yet, including a recompute-to-verify classification, pure recompute functions (Layer 2), and tests run against golden conformance vectors (offline) then a local anvil deployment.
+description: Generate TypeScript, Python, and Rust SDK clients for an ERC defined in agent-ercs that doesn't have SDK support yet, including a recompute-to-verify classification, pure recompute functions (Layer 2), and tests run against golden conformance vectors (offline) then a local anvil deployment.
 ---
 
 # Add ERC
@@ -81,14 +81,46 @@ The output has two layers:
 
    **c) Post-generation cleanup:** After writing all recompute files, scan each file for unused imports and remove them before finalizing. Generated code should be clean on arrival — no dangling imports from copy-paste or removed computations.
 
-8. **Run the recompute tests separately first.** Before touching any contract infrastructure, run `npx vitest run <path-to-recompute.test.ts>` (TS) and `pytest <path-to-test_recompute.py>` (Python). These must pass without any blockchain node. If they fail, debug the recompute implementation before proceeding to Layer 1.
+   **d) Rust `recompute.rs` + inline tests:**
+   - Generate `rust/core/src/<erc_lowercase>/recompute.rs` (lowercase ERC segment, e.g. `erc8004`).
+   - **Imports (module-level):** Only what the public functions need. Use `alloy_primitives::{keccak256, FixedBytes}` for hashes and bytes32 types (use `FixedBytes<32>` explicitly, not the `B256` alias). For ABI encoding, use `alloy_core::sol_types::SolValue` — this requires `sol-types` feature enabled on `alloy-core` in `Cargo.toml`. For integer-to-bytes32 padding, use `u64::to_be_bytes()` into a `[0u8; 32]` buffer.
+   - **Test imports inside `#[cfg(test)]`:** Put `use alloy_primitives::hex;` inside the test module (not module-level, or it triggers "unused import" in non-test builds). Use `hex!("...")` macro for inline golden vector hex literals.
+   - Pure `no_std` functions — no networking, no alloc unless needed. Each function: doc comment with ERC section, clean input types (`u64`, `FixedBytes<32>`, `&str`), `FixedBytes<32>` output (not `B256`).
+   - Write inline `#[cfg(test)] mod tests { ... }` directly in `recompute.rs`. Inline golden vectors (duplicate expected values from recompute-kit) are the primary test. Each golden vector gets its own `#[test]` function. Edge cases: zero, empty input, different-inputs-different-hash, max values.
+   - Tests run with `cargo test -p agent-sdk-core` — no anvil or network needed.
+   - **Concrete patterns by operation type:**
+
+     | Operation | Rust pattern |
+     |-----------|-------------|
+     | `bytes32(uint256(x))` left-pad | `u64_to_bytes32`: `let mut buf = [0u8; 32]; buf[24..].copy_from_slice(&x.to_be_bytes()); FixedBytes::new(buf)` |
+     | `keccak256(bytes)` | `keccak256(&bytes)` — returns `FixedBytes<32>` |
+     | `keccak256(utf8(str))` | `keccak256(s.as_bytes())` |
+     | `concat(a, b)` then keccak | `let mut v = Vec::new(); v.extend_from_slice(a); v.extend_from_slice(b); keccak256(&v)` |
+     | `abi.encode(same-type pairs)` | `(val1, val2).abi_encode()` — works for homogeneous types (both FixedBytes, both U256) |
+     | `abi.encode(mixed types)` | Use `alloy_core::sol! { struct S { type1 field1; type2 field2; ... } }` then `alloy_core::sol_types::SolValue::abi_encode(&s)` — needed when types differ (e.g. `uint8 + uint256 + bytes32`) because Rust tuples don't blanket-impl `SolValue` for `u8` |
+
+8. **Run the recompute tests separately first.** Before touching any contract infrastructure, run `npx vitest run <path-to-recompute.test.ts>` (TS), `pytest <path-to-test_recompute.py>` (Python), and `cargo test -p agent-sdk-core` (Rust). These must pass without any blockchain node. If they fail, debug the recompute implementation before proceeding to Layer 1.
 
 9. **Implement Layer 1 (contract wrappers).**
    - Hand-write the ABI fragment for the functions/events the client uses, matching the interface exactly (no dynamic codegen from build artifacts).
-   - Before writing the client, check existing ERC clients in the SAME category (identity, verify, etc.) for wallet and constructor patterns and match them. Specifically:
-     * WalletClient: use the `createWalletClient({ chain: foundry, transport, account })` pattern (see ERC-8004, ERC-8274) — don't invent `{ account }` plain objects or other ad-hoc patterns.
-     * Constructor: match the existing `(config, account)` signature pattern.
-   - Implement the client, following the shape and conventions of `typescript/src/identity/ERC8004/client.ts` / `python/src/agent_sdk/identity/erc8004/client.py` for a single-contract ERC, or `typescript/src/verify/ERC8274/*Client.ts` / `python/src/agent_sdk/verify/erc8274/client.py` for an ERC that's really several interfaces meant to be deployed as separate, cross-referencing contracts — don't force a multi-contract ERC into one client class. For a claim classified as recompute-to-verify (a deterministic, callable-by-anyone check), expose it as a read-only simulated call/`.call()` rather than a broadcast transaction — nobody should need to spend gas or hold a funded key just to check something.
+   - **TypeScript and Python:**
+     * Before writing the client, check existing ERC clients in the SAME category (identity, verify, etc.) for wallet and constructor patterns and match them. Specifically:
+       * WalletClient: use the `createWalletClient({ chain: foundry, transport, account })` pattern (see ERC-8004, ERC-8274) — don't invent `{ account }` plain objects or other ad-hoc patterns.
+       * Constructor: match the existing `(config, account)` signature pattern.
+     * Implement the client, following the shape and conventions of `typescript/src/identity/ERC8004/client.ts` / `python/src/agent_sdk/identity/erc8004/client.py` for a single-contract ERC, or `typescript/src/verify/ERC8274/*Client.ts` / `python/src/agent_sdk/verify/erc8274/client.py` for an ERC that's really several interfaces meant to be deployed as separate, cross-referencing contracts — don't force a multi-contract ERC into one client class. For a claim classified as recompute-to-verify (a deterministic, callable-by-anyone check), expose it as a read-only simulated call/`.call()` rather than a broadcast transaction — nobody should need to spend gas or hold a funded key just to check something.
+   - **Rust `client.rs`:**
+     * Generate `rust/core/src/<erc_lowercase>/client.rs`. Define a generic struct `Client<D: DataProvider>` — no direct alloy transport dependency, no `tokio`. The `DataProvider` trait from `rust/core/src/trait.rs` supplies external data so the client compiles both in host (RPC-backed) and guest (preimage-backed) contexts.
+     * Read-only contract calls: methods return `Result<T, ClientError>` where fetching happens via `self.provider.fetch(key)`. No `send`/broadcast in core — write methods belong in the `providers` crate or a separate host-only layer.
+     * For ERCs with no contract interface (recompute-only), skip Rust Layer 1 entirely.
+   - Generate `rust/core/src/<erc_lowercase>/mod.rs` that re-exports both `recompute` and `client` modules.
+
+   - **Rust integration tests** (for ERCs with a contract interface):
+     * Create `rust/core/tests/<erc_lowercase>_integration.rs`. This test uses the same testkit workflow as TS/Python: anvil running, contract deployed via Foundry deploy script, then calls the contract through the generated Rust client.
+     * The integration test should use `alloy-provider` + `alloy-transport-http` (or the full `alloy` meta-crate) for a proper RPC client with signing, nonce management, and gas estimation. Raw `reqwest` + JSON-RPC works for `eth_call` (read-only) but NOT for `eth_sendTransaction` (writes) which need signing.
+     * Dev-dependencies needed in `rust/core/Cargo.toml`: `alloy = { version = "2", features = ["full"] }`, `serde_json = "1"`, `tokio` (with `rt` and `macros` features). Version 2.x avoids serde conflicts present in 0.11/0.12. Update `rust/providers/Cargo.toml` to use the same alloy version so workspace resolution doesn't conflict.
+     * Define ABI inline using `alloy::sol!` macro with `#[sol(rpc)]` attribute. Use tuple types in function signatures for struct parameters (e.g. `(string, bytes)[]` not `(string, bytes32)[]` — Solidity `bytes` vs `bytes32` encode differently). Create a provider with `ProviderBuilder::new().wallet(signer).connect_http(url)` (note: `connect_http` in v2, not `on_http`). Return types from `call()` use `.0` field access (v2 changed from `._0`).
+     * Signer: read the deployer private key from `testkit/.anvil-accounts.json` (account index 0) at runtime, or accept it as an env var `ANVIL_KEY`. Do NOT hardcode a specific private key — anvil generates fresh keys on each start, so a hardcoded key will fail on the next anvil session.
+     * Tests match the same flow as TS/Python: anvil start → forge deploy → register/setup → read → assert. Contract address should be read from env var `ERCXXXX_ADDRESS` with a sensible fallback.
    - If the ERC needs a contract to deploy for testing and `agent-ercs` has no base implementation yet, write a minimal reference implementation under `testkit/contracts/mocks/<category>/<ERCXXXX>/` (one file per contract if the ERC needs more than one), clearly commented as local-testing-only (see `MockIdentityRegistry.sol` for a single-contract pattern, `MockProofVerifier.sol`/`MockAgentVerifier.sol`/`MockAgentVerifiable.sol` for a multi-contract one), plus a Foundry unit test for it/them under `testkit/test/<category>/<ERCXXXX>/`.
    - Write `testkit/script/<category>/<ERCXXXX>/Deploy<ERCXXXX>.s.sol` (file basename must match its contract name, e.g. `DeployERC8301.s.sol` containing `contract DeployERC8301` — Foundry keys broadcast artifacts by script basename only, so reusing a generic name like `Deploy.s.sol` across ERCs would collide). If the ERC needs several wired-together contracts, deploy all of them in one script (constructor-inject each into the next) — `testkit/scripts/deploy.sh` prints one address per line in the order each was deployed; use `deployContracts()`/`deploy_contracts()` (plural, returning the full list) instead of the single-address `deployContract()`/`deploy_contract()` to receive all of them (see `typescript/test/verify/ERC8274/erc.test.ts` / `python/tests/verify/erc8274/test_erc.py`).
    - Write tests for both languages that deploy via `testkit/scripts/deploy.sh` (see `typescript/test/identity/ERC8004/erc.test.ts` and `python/tests/identity/erc8004/test_erc.py` for the single-contract wiring pattern, or the ERC-8274 test files above for multi-contract) and call the client's methods. For any claim classified as recompute-to-verify, also test that the check rejects tampered/incorrect data (a bad proof, a bad signature) — some checks reject by returning a falsy result rather than reverting; assert whichever the contract actually does, don't assume a revert.
@@ -106,17 +138,30 @@ The output has two layers:
     - Populate the ERC module's `__init__.py` (`python/src/agent_sdk/<category>/<ercxxxx>/__init__.py`) with proper named imports and `__all__`. See `python/src/agent_sdk/identity/erc8004/__init__.py` for a single-client pattern or `python/src/agent_sdk/execution/erc8301/__init__.py` for a multi-client pattern. Do not leave it empty — it must export all public classes and functions.
     - Update the category-level `__init__.py` (`python/src/agent_sdk/<category>/__init__.py`) with a docstring-only or import-based entry if it doesn't reference the new ERC yet.
 
+    **Rust:**
+    - Add `pub mod <erc_lowercase>;` to `rust/core/src/lib.rs` to register the new ERC module.
+    - If the ERC introduces a new category that doesn't yet exist in `rust/core/src/`, create an empty category-level `mod.rs` and add the `pub mod` line for it from `lib.rs`.
+
 11. **Update root README.** Append the new ERC to the "Supported ERCs" table in the repo root `README.md`. Match the existing row format: ERC name with link to agent-ercs, category, Contract Calls column (list client classes or `—`), Recompute column (list recompute functions or `—`). Insert in alphabetical order within its category.
 
-12. **Run every new test to green** — first the recompute tests (offline, no anvil), then the full integration tests:
-    - `npx vitest run <recompute test path>` (Layer 2 — offline, no anvil needed)
-    - `pytest <recompute test path>` (Layer 2 — offline, no anvil needed)
-    - Start anvil (`testkit/scripts/start-anvil.sh`), then:
-    - `npx vitest run` (Layer 1 integration tests + any other TS tests)
-    - `pytest` (Layer 1 integration tests + any other Python tests)
-    - If more than one ERC's tests now exist for a language, run that language's *full* suite, not just the new files in isolation — shared test infrastructure (one anvil instance and deployer account across all ERCs) can only reveal cross-file issues, such as a nonce race from parallel test execution, when everything runs together.
-    - Stop anvil (`testkit/scripts/stop-anvil.sh`) when done.
+12. **Run every new test to green via testkit** — recompute tests first (offline), then deploy and run integration tests through the testkit harness. **This is a hard requirement: every ERC with a contract interface MUST pass its Rust integration test against a local anvil deployed via testkit before the ERC is considered done.**
+
+    **Recompute (Layer 2 — offline, no blockchain needed):**
+    - `npx vitest run <recompute test path>` (TS)
+    - `pytest <recompute test path>` (Python)
+    - `cargo test -p agent-sdk-core --lib <erc_lowercase>` (Rust)
+
+    **Integration (Layer 1 — testkit workflow, required for ERCs with a contract interface):**
+    - Start anvil: `testkit/scripts/start-anvil.sh`
+    - Deploy the mock/real contract: `testkit/scripts/deploy.sh <category>/<ERCXXXX> <DeployScriptName>`
+    - Run TS integration tests: `npx vitest run`
+    - Run Python integration tests: `pytest`
+    - Run Rust integration test: `export ERCXXXX_ADDRESS=<addr> && cargo test --manifest-path rust/core/Cargo.toml --test <erc_lowercase>_integration -- --nocapture`
+      * The Rust test reads the contract address from `ERCXXXX_ADDRESS` env var and the signer key from `testkit/.anvil-accounts.json`. It must connect via alloy v2 to the deployed contract and call at least one read and one write method (if writable).
+      * If the Rust integration test fails, do NOT proceed — fix the code, re-deploy, and re-run until green.
+    - Run each language's *full* suite — shared anvil instance and deployer account across all ERCs can reveal cross-file issues (nonce races, etc.).
+    - Stop anvil: `testkit/scripts/stop-anvil.sh`
 
 ## What gets committed
 
-Only the final READMEs, recompute layer (recompute.ts, recompute.py, recompute tests), client code (client.ts, client.py, contract wrappers tests), barrel files (index.ts, __init__.py), and package.json exports. Discussion during the early steps is scratch and is not committed.
+Only the final READMEs, recompute layer (recompute.ts/md, recompute.py, recompute.rs, recompute tests), client code (client.ts, client.py, client.rs, contract wrappers tests), barrel files (index.ts, __init__.py, mod.rs), package.json exports, and Rust module registrations. Discussion during the early steps is scratch and is not committed.
