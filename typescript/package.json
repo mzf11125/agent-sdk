@@ -79,6 +79,10 @@
     "./metering/ERC8312/recompute": {
       "types": "./dist/metering/ERC8312/recompute.d.ts",
       "default": "./dist/metering/ERC8312/recompute.js"
+    },
+    "./governance/InvinoVeritas": {
+      "types": "./dist/governance/InvinoVeritas/index.d.ts",
+      "default": "./dist/governance/InvinoVeritas/index.js"
     }
   },
   "scripts": {
@@ -86,7 +90,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "viem": "^2.21.0"
+    "viem": "^2.21.0",
+    "invinoveritas-verify": "^1.1.0"
   },
   "devDependencies": {
     "typescript": "^5.6.0",
