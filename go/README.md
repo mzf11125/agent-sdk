@@ -28,7 +28,7 @@ Each ERC's own `README.md` documents the full method list, types, and whether `v
 | ERC-8281 | verify | ObservationCommitmentClient | ComputeObservationDigest |
 | ERC-8299 | verify | WyriweAttestationClient, JudgmentExecutionClient | ComputeRawInputHash, ComputeSanitizationPipelineHash |
 | ERC-8301 | execution | AgentWorkflowClient | ComputeTaskHash, ComputeReplyHash |
-| ERC-8312 | metering | BoundedAgentActionClient, BudgetSubstrateClient, ContestableEnvelopeClient | CheckStatefulBound, CheckCursorHeadroom |
+| ERC-8312 | metering | BoundedAgentActionClient, BudgetSubstrateClient, ContestableEnvelopeClient | CheckStatefulBound, CheckCursorHeadroom, ComputeRemainingHeadroom, VerifyRemaining |
 | ERC-8323 | identity | SourceBindingClient | — |
 
 ## License
