@@ -158,7 +158,7 @@ The output has two layers:
            return &XxxClient{rpc: rpc, address: addr}
        }
        ```
-     * Read-only contract calls: methods return `(T, error)` using `ethclient.Client.CallContract()` with `abi.Arguments.Pack()` for input encoding and `abi.Arguments.Unpack()` for output decoding.
+     * Read-only contract calls: methods return `(T, error)` using `ethclient.Client.CallContract()` with `abi.ABI.Pack(name, args...)` for input encoding and `abi.Arguments.Unpack()`/`abi.ABI.Unpack()` for output decoding. GOTCHA: `abi.Arguments.Pack()` packs the arguments ONLY — it does not prepend the 4-byte method selector. Use `a.Pack(methodName, args...)` (which does) or `append(method.ID, packed...)`; a bare `method.Inputs.Pack(...)` produces a 32-byte-zero fallback call that reverts.
      * Write/send methods: return `(*types.Transaction, error)` using `ethclient.Client.SendTransaction()` with a signed tx built via `bind.NewKeyedTransactorWithChainID()`.
      * ABI kept in `abi.go` as parsed `abi.ABI` from a JSON string constant, or as hand-crafted `abi.Arguments` for simple interfaces.
      * For ERCs with no contract interface (recompute-only), skip Go Layer 1 entirely.
