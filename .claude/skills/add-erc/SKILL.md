@@ -99,6 +99,31 @@ The output has two layers:
      | `abi.encode(same-type pairs)` | `(val1, val2).abi_encode()` — works for homogeneous types (both FixedBytes, both U256) |
      | `abi.encode(mixed types)` | Use `alloy_core::sol! { struct S { type1 field1; type2 field2; ... } }` then `alloy_core::sol_types::SolValue::abi_encode(&s)` — needed when types differ (e.g. `uint8 + uint256 + bytes32`) because Rust tuples don't blanket-impl `SolValue` for `u8` |
 
+   **e) Go `recompute.go` + inline tests:**
+   - Generate `go/<category>/<erc_lowercase>/recompute.go` (lowercase ERC segment, e.g. `erc8275`).
+   - Package name: the lowercase ERC segment (e.g. `package erc8275`).
+   - **Imports:** Use `github.com/ethereum/go-ethereum/crypto` for hashes, `github.com/ethereum/go-ethereum/common` for `Hash` and `HexToHash`, `encoding/binary` for integer-to-bytes32 padding, `github.com/ethereum/go-ethereum/accounts/abi` for ABI encoding, `errors` for sentinel errors.
+   - Pure stateless functions — no network, no contract address, no RPC. Each function: doc comment with ERC section, clean input types (`uint64`, `common.Hash`, `string`), return `(result, error)`.
+   - Function naming: PascalCase (Go export convention), e.g. `ComputeWinRate`, `ComputeAgentId`, `ComputeObservationDigest`.
+   - Return `error` for invalid inputs (zero where division by zero would occur, empty where required) — never `panic`.
+   - Write inline tests in `recompute_test.go` in the same package directory. Use stdlib `testing`: `func TestGoldenXxx(t *testing.T) { ... }`. Inline golden vectors (duplicate expected values from recompute-kit) are the primary test. Each golden vector gets its own `Test` function. Edge cases: zero, empty input, different-inputs-different-hash, max values.
+   - Also test from recompute-kit JSON when available: read `../../../../../recompute-kit/conformance/agent-flow.vectors.json`, filter by step, assert each. Use `encoding/json` stdlib. Wrap in a helper that logs and skips when the file is missing.
+   - Tests run with `go test ./go/<category>/<erc_lowercase>/...` — no anvil or network needed.
+
+   **Concrete patterns by operation type:**
+
+     | Operation | Go pattern |
+     |-----------|-----------|
+     | `bytes32(uint256(x))` left-pad | `var b common.Hash; binary.BigEndian.PutUint64(b[24:], x)` — zero-fill then place u64 at bytes 24-31 |
+     | `keccak256(bytes)` | `crypto.Keccak256Hash(data)` — returns `common.Hash` |
+     | `keccak256(utf8(str))` | `crypto.Keccak256Hash([]byte(s))` |
+     | `concat(a, b)` then keccak | `combined := append(a, b...); crypto.Keccak256Hash(combined)` |
+     | `abi.encode(same-type pairs)` | `typ, _ := abi.NewType("bytes32", "", nil); args := abi.Arguments{{Type: typ}, {Type: typ}}; packed, _ := args.Pack(val1, val2)` |
+     | `abi.encode(mixed types)` | Define each type with `abi.NewType`: `uint8Type, _ := abi.NewType("uint8", "", nil); bytes32Type, _ := abi.NewType("bytes32", "", nil); uint256Type, _ := abi.NewType("uint256", "", nil)`. Then `args := abi.Arguments{{Type: uint8Type}, {Type: uint256Type}, {Type: bytes32Type}, ...}` and `packed, _ := args.Pack(stage, taskSeq, inputHash, ...)` |
+     | integer arithmetic | Standard Go `uint64` operators. Basis-points formula example: `num := wins * 20000; result := (num + total) / (2 * total)` |
+
+   **Post-generation cleanup:** After writing all recompute files, scan each file for unused imports and remove them. Also check that `go.mod` has the required dependencies (`github.com/ethereum/go-ethereum`). Run `go mod tidy` in the `go/` directory to add any missing entries to `go.mod` and `go.sum`.
+
 8. **Run the recompute tests separately first.** Before touching any contract infrastructure, run `npx vitest run <path-to-recompute.test.ts>` (TS), `pytest <path-to-test_recompute.py>` (Python), and `cargo test -p agent-sdk-core` (Rust). These must pass without any blockchain node. If they fail, debug the recompute implementation before proceeding to Layer 1.
 
 9. **Implement Layer 1 (contract wrappers).**
