@@ -8,7 +8,7 @@ Delete an entry the moment it passes; delete the file when the list empties.
 
 ---
 
-## `go/test` — `TestERC8301AgentWorkflow`
+## `go/test` — `TestERC8301AgentWorkflow`  ([#16](https://github.com/trustless-ai/agent-sdk/issues/16))
 
 **Status:** real finding, not a setup problem.
 
