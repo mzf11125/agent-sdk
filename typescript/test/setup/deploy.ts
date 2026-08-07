@@ -7,6 +7,7 @@ const testkitDir = path.resolve(fileURLToPath(new URL('.', import.meta.url)), '.
 
 export const ANVIL_RPC_URL = 'http://127.0.0.1:8545'
 
+
 export interface AnvilAccount {
   address: `0x${string}`
   privateKey: `0x${string}`
@@ -17,7 +18,15 @@ export interface AnvilAccount {
 // or private key is ever a literal in this repo's source.
 export function getAnvilAccount(index: number): AnvilAccount {
   const accountsPath = path.join(testkitDir, '.anvil-accounts.json')
-  const { accounts } = JSON.parse(readFileSync(accountsPath, 'utf-8')) as { accounts: AnvilAccount[] }
+  let data: string
+  try {
+    data = readFileSync(accountsPath, 'utf-8')
+  } catch {
+    throw new Error(
+      `${accountsPath} not found — start anvil first: testkit/scripts/start-anvil.sh`,
+    )
+  }
+  const { accounts } = JSON.parse(data) as { accounts: AnvilAccount[] }
   const account = accounts[index]
   if (!account) {
     throw new Error(`getAnvilAccount: no anvil account at index ${index}`)

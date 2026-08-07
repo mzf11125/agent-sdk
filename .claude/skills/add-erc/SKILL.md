@@ -108,6 +108,8 @@ The output has two layers:
      | `concat(a, b)` then keccak | `let mut v = Vec::new(); v.extend_from_slice(a); v.extend_from_slice(b); keccak256(&v)` |
      | `abi.encode(same-type pairs)` | `(val1, val2).abi_encode()` — works for homogeneous types (both FixedBytes, both U256) |
      | `abi.encode(mixed types)` | Use `alloy_core::sol! { struct S { type1 field1; type2 field2; ... } }` then `alloy_core::sol_types::SolValue::abi_encode(&s)` — needed when types differ (e.g. `uint8 + uint256 + bytes32`) because Rust tuples don't blanket-impl `SolValue` for `u8` |
+     | `sha256(bytes)` | `use sha2::Digest; use sha2::Sha256; let h = Sha256::digest(data); FixedBytes::<32>::from_slice(&h)` — note `sha2` crate (already a dependency), NOT `keccak256`. **CRITICAL: ERC-8299 L4 uses sha256, NOT keccak256 — do not mix up.** |
+     | `"sha256:" + sha256(JCS(...))` | JCS (RFC 8785) canonicalization in Rust: (1) Collect keys, sort with `.sort()` (Rust's `&str` sort is lexicographic over UTF-8 bytes = code-point order — correct). (2) Build canonical JSON: `let mut parts = Vec::new(); for k in sorted_keys { let kj = serde_json::to_string(k).unwrap(); let vj = match fields.get(k) { Some(v) => serde_json::to_string(v).unwrap(), None => "null".to_string() }; parts.push(format!("{}:{}", kj, vj)); }` (3) `let canon = format!("{{{}}}", parts.join(","));` (4) `let h = Sha256::digest(canon.as_bytes());` (5) `format!("sha256:{}", hex::encode(h))`. Dependencies: `sha2::Sha256` (already in `Cargo.toml`), `serde_json` (dev-dependency, add to main deps if needed), `hex` (from `alloy_primitives`). |
 
    **e) Go `recompute.go` + inline tests:**
    - Generate `go/<category>/<erc_lowercase>/recompute.go` (lowercase ERC segment, e.g. `erc8275`).
@@ -135,6 +137,157 @@ The output has two layers:
      | `"sha256:" + sha256(JCS(...))` | JCS (RFC 8785) canonicalization in Go: (1) `sort.Strings(keys)` — Go's byte-order sort = code-point sort for UTF-8, so it's RFC-8785-correct. (2) Build canonical JSON string: for each sorted key `k`, `keyJSON, _ := json.Marshal(k); valJSON, _ := json.Marshal(v); parts = append(parts, string(keyJSON)+":"+string(valJSON))`. (3) `canon := "{" + strings.Join(parts, ",") + "}"`. (4) `h := sha256.Sum256([]byte(canon))`. (5) Return `"sha256:" + hex.EncodeToString(h[:])`. Nil/null handling: if a key is missing from the map entirely, emit `null` (not `""`); check with `v, exists := fields[k]; if !exists { use "null" }`. Uses stdlib `crypto/sha256`, `encoding/json`, `encoding/hex`, `sort`, `strings` — no go-ethereum needed. |
 
    **Post-generation cleanup:** After writing all recompute files, scan each file for unused imports and remove them. Also check that `go.mod` has the required dependencies (`github.com/ethereum/go-ethereum`). Run `go mod tidy` in the `go/` directory to add any missing entries to `go.mod` and `go.sum`.
+
+   **f) Golden vector file reader (all languages):**
+
+   Every ERC with recompute functions MUST include a conformance check that reads the golden vectors from `testkit/vectors/ercXXXX-xxx.vectors.json` inside this repository. Inline golden vectors remain the **primary** assertion; the file reader is the **secondary** conformance check — if the file is missing, skip with a guard clause (do not fail).
+
+   JSON schema: `{ "schema": "...", "vectors": [ { "step": "...", "inputs": {...}, "expected": ... } ] }`.
+
+   **Path from test file to `testkit/vectors/`:**
+   - TypeScript: `../../../../testkit/vectors/` (4 levels up from `typescript/test/<category>/<ERCXXXX>/`)
+   - Python: `parents[4] / "testkit" / "vectors" /` (4 levels up from `python/tests/<category>/<ercxxxx>/`)
+   - Go: `filepath.Join("..", "..", "..", "testkit", "vectors", ...)` (3 levels up from `go/<category>/<ercxxxx>/`, cwd = package dir)
+   - Rust: `include_str!("../../../../../testkit/vectors/...")` (5 levels up from `rust/core/src/<ercxxxx>/`)
+
+   **TypeScript template** (add to `recompute.test.ts`):
+
+   ```ts
+   import { readFileSync, existsSync } from 'node:fs'
+   import { fileURLToPath } from 'node:url'
+   import { dirname, resolve } from 'node:path'
+
+   const here = dirname(fileURLToPath(import.meta.url))
+   const VECTORS = resolve(here, '../../../../testkit/vectors/ercXXXX-xxx.vectors.json')
+
+   describe('golden vector conformance', () => {
+     if (!existsSync(VECTORS)) {
+       it('(no golden vectors on disk — skipping)', () => { expect(true).toBe(true) })
+       return
+     }
+     const suite = JSON.parse(readFileSync(VECTORS, 'utf8')).vectors as { step: string; inputs: Record<string, unknown>; expected: unknown }[]
+     for (const v of suite) {
+       it(`${v.step}`, () => {
+         switch (v.step) {
+           case "<step>":
+             expect(recomputeFn(v.inputs.<field> as <type>)).toBe(v.expected)
+             break
+           // ... one case per step in this ERC
+           default:
+             throw new Error(`unknown step ${v.step} — a vector exists that no function covers`)
+         }
+       })
+     }
+   })
+   ```
+
+   **Python template** (add to `test_recompute.py`):
+
+   ```python
+   import json, pathlib
+   import pytest
+
+   VECTORS = pathlib.Path(__file__).resolve().parents[4] / "testkit" / "vectors" / "ercXXXX-xxx.vectors.json"
+
+   def _load_vectors():
+       if not VECTORS.exists():
+           return []
+       return json.loads(VECTORS.read_text(encoding="utf-8"))["vectors"]
+
+   @pytest.mark.parametrize("v", _load_vectors(), ids=lambda v: v.get("step", ""))
+   def test_golden_vector(v):
+       if v["step"] == "<step>":
+           assert recompute_fn(v["inputs"]["<field>"]) == v["expected"]
+       # ... elif for each additional step
+       else:
+           pytest.fail(f"unknown step {v['step']} — a vector exists that no function covers")
+   ```
+
+   **Go template** (add to `recompute_test.go`):
+
+   ```go
+   import (
+       "encoding/json"
+       "os"
+       "path/filepath"
+   )
+
+   type vectorFile struct {
+       Vectors []vector `json:"vectors"`
+   }
+   type vector struct {
+       Step     string          `json:"step"`
+       Inputs   json.RawMessage `json:"inputs"`
+       Expected json.RawMessage `json:"expected"`
+   }
+
+   func loadVectors(t *testing.T) []vector {
+       t.Helper()
+       path := filepath.Join("..", "..", "..", "testkit", "vectors", "ercXXXX-xxx.vectors.json")
+       raw, err := os.ReadFile(path)
+       if err != nil {
+           t.Skipf("golden vectors not found — skipping: %v", err)
+           return nil
+       }
+       var file vectorFile
+       if err := json.Unmarshal(raw, &file); err != nil {
+           t.Fatalf("parse golden vectors: %v", err)
+       }
+       return file.Vectors
+   }
+
+   func TestVectorsFile(t *testing.T) {
+       for _, v := range loadVectors(t) {
+           t.Run(v.Step, func(t *testing.T) {
+               switch {
+               case v.Step == "<step>":
+                   var in struct{ Field Type `json:"field"` }
+                   json.Unmarshal(v.Inputs, &in)
+                   // call recompute function, assert
+               // ... case for each additional step
+               default:
+                   t.Fatalf("unknown step %q", v.Step)
+               }
+           })
+       }
+   }
+   ```
+
+   **Rust template** (add to `recompute.rs` `#[cfg(test)]` module):
+
+   ```rust
+   #[cfg(test)]
+   mod golden_vector_tests {
+       use serde_json::Value;
+
+       const VECTORS_STR: &str = include_str!("../../../../../testkit/vectors/ercXXXX-xxx.vectors.json");
+
+       #[test]
+       fn golden_vectors() {
+           let data: Value = serde_json::from_str(VECTORS_STR).unwrap();
+           for v in data["vectors"].as_array().unwrap() {
+               let step = v["step"].as_str().unwrap();
+               match step {
+                   "<step>" => {
+                       let input = v["inputs"]["<field>"].as_u64().unwrap();
+                       let expected = /* parse v["expected"] */;
+                       assert_eq!(recompute_fn(input), expected);
+                   }
+                   _ => panic!("unknown step {}", step),
+               }
+           }
+       }
+   }
+   ```
+
+   **ERC-8275 float-to-bps conversion:**
+   recompute-kit vectors use float `"expected": 0.5161`; SDK returns basis points. Reader must convert:
+   - TS: `Math.round((v.expected as number) * 10000)`
+   - Python: `round(v["expected"] * 10000)`
+   - Go: `uint64(math.Round(f * 10000))`
+   - Rust: `(v["expected"].as_f64().unwrap() * 10000.0).round() as u64`
+
+   **List each vector step explicitly in the dispatch** — do NOT write `// similar for other steps`. Every dispatch is one case/elif/switch branch with its exact function call and type conversion.
 
 8. **Run the recompute tests separately first.** Before touching any contract infrastructure, run `npx vitest run <path-to-recompute.test.ts>` (TS), `pytest <path-to-test_recompute.py>` (Python), `cargo test -p agent-sdk-core` (Rust), and `go test ./go/<category>/<erc_lowercase>/...` (Go). These must pass without any blockchain node. If they fail, debug the recompute implementation before proceeding to Layer 1.
 
