@@ -1,0 +1,89 @@
+{
+  "schema": "agent-sdk.cross-lane-vectors.v0",
+  "note": "Cross-lane byte-compatibility vectors for ERC-8299 L4 (judgment chain-of-custody). Every language port MUST reproduce `expected` exactly. Layer coverage is the point: L1-L3 vectors live in recompute-kit/conformance/agent-flow.vectors.json (keccak256); L4 is sha256-based and was missing from the add-erc template, so Rust and Go ports inherited the gap — these vectors make that mechanically detectable.",
+  "vectors": [
+    {
+      "step": "8299-l4/raw-proposal-hash",
+      "why": "sha256 over the UTF-8 artifact bytes — NOT keccak256 (L4 anchors off-chain verdicts too)",
+      "inputs": {
+        "artifact": "test artifact content for cross-language verification"
+      },
+      "expected": "0xb8f70a237da212a272ecd09370acedbce6ca1d7df90745beafcac77e39697a88"
+    },
+    {
+      "step": "8299-l4/raw-proposal-hash",
+      "why": "empty artifact is a legal input, not an error",
+      "inputs": {
+        "artifact": ""
+      },
+      "expected": "0xe3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "step": "8299-l4/verdict-hash",
+      "why": "LIVE vector: reproduces the real decision_ref of invinoveritas /ledger entry #236 (api.babyblueviper.com/ledger/236) from its own published decision_ref_preimage_fields. A port that passes this recomputes a real, anchored, third-party verdict.",
+      "inputs": {
+        "fields": {
+          "artifact_hash": "bdb4d93c421d54883a0c31821d37d197a91a972062be28babed3599dcf2fbdb3",
+          "artifact_type": "onchain_action",
+          "policy_version": "invinoveritas.review.v7",
+          "verdict": "reject",
+          "source_class": "agent_reported",
+          "vantage_limitation": "source_class=agent_reported: nothing external confirms this /review call happened, or could not be bypassed, before the action it governs. Recomputability makes this record internally consistent (an occurrence claim) — it is not an absence/completeness claim, which needs a vantage the acting agent doesn't control. Sufficient as standalone evidence for a reversible action; for an irreversible or privileged action, treat this proof as advisory input, not standalone authorization, until paired with an independent mediation-point integration.",
+          "related_decision_ref": null,
+          "intended_audience": null
+        },
+        "preimage_fields": [
+          "artifact_hash",
+          "artifact_type",
+          "policy_version",
+          "verdict",
+          "source_class",
+          "vantage_limitation",
+          "related_decision_ref",
+          "intended_audience"
+        ]
+      },
+      "expected": "sha256:5bca0bf044c8e1c8e16a01bf3ee44b12c305ce6a50dd9789ff73cbd13482b9b9"
+    },
+    {
+      "step": "8299-l4/verdict-hash",
+      "why": "null-valued preimage fields must be present as JSON null, never omitted",
+      "inputs": {
+        "fields": {
+          "artifact_hash": "b8f70a237da212a272ecd09370acedbce6ca1d7df90745beafcac77e39697a88",
+          "artifact_type": "plan",
+          "policy_version": "invinoveritas.review.v4",
+          "verdict": "approve",
+          "source_class": "agent_reported",
+          "vantage_limitation": null
+        },
+        "preimage_fields": [
+          "artifact_hash",
+          "artifact_type",
+          "policy_version",
+          "verdict",
+          "source_class",
+          "vantage_limitation"
+        ]
+      },
+      "expected": "sha256:2970854c035d5aedb673b8523128665712895f62dd525c91fc8e858ad588ce58"
+    },
+    {
+      "step": "8299-l4/verdict-hash",
+      "why": "KEY-SORT CONFORMANCE (found 2026-08-07): a preimage key above U+FFFF sorts differently under UTF-16 code units (JS Array.sort) than under code points (Python sorted). JCS/RFC-8785 requires CODE POINT order. TypeScript's naive [...keys].sort() produces a DIFFERENT hash here — this vector is the one that fails until the port sorts by code point. Passing it is what 'byte-compatible' means beyond ASCII.",
+      "inputs": {
+        "fields": {
+          "a": "ascii",
+          "Ｚ": "fullwidth-Z",
+          "😀": "emoji"
+        },
+        "preimage_fields": [
+          "a",
+          "Ｚ",
+          "😀"
+        ]
+      },
+      "expected": "sha256:36e2e43ff6d7062ebb64c209604b7ce028b4eb88d4db2892e872194d16f36bca"
+    }
+  ]
+}
