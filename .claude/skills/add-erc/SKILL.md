@@ -21,7 +21,15 @@ The output has two layers:
    - See `typescript/src/identity/ERC8004/README.md` for a clean NOT-verifiable case: the interface leaves a signing convention completely unfixed, so there's nothing a generic SDK can check at all.
    - See `typescript/src/verify/ERC8274/README.md` for a split verdict on one ERC: the core validity check *is* recompute-to-verify (anyone can call the deployed, immutable verifier contract themselves and get an authoritative answer — that's a real instance of recompute-to-verify, not "just asking the same contract again"), while a separate derived value (an audit-trail digest) is NOT, because one of its inputs isn't exposed anywhere in the interface. Don't let one claim's verdict force the other's.
 
-4. **Identify pure recompute functions (Layer 2).** For each claim the ERC makes, identify whether it involves a deterministic computation that can be reproduced off-chain from public inputs as a pure mathematical function. This is SEPARATE from the recompute-to-verify classification in step 3:
+4. **Identify pure recompute functions (Layer 2).** For each claim the ERC makes, identify whether it involves a deterministic computation that can be reproduced off-chain from public inputs as a pure mathematical function.
+
+   > **Enumerate the ERC's layers before you start — do not work from the example list below.**
+   > An ERC may define several layers, each with its own computations and sometimes its own hash
+   > function (ERC-8299 is the standing case: L1-L3 input provenance is keccak256-based, **L4
+   > judgment chain-of-custody is sha256-based**). A port is complete only when every layer the ERC
+   > defines is covered. Write the layer list out explicitly in the per-ERC README (step 6) and check
+   > the implemented functions against it — the examples below are illustrative, never exhaustive,
+   > and treating them as a checklist is how a whole layer goes missing in a new language port. This is SEPARATE from the recompute-to-verify classification in step 3:
    - **recompute-to-verify** (step 3): can a caller *independently verify* a claim by calling a contract or recomputing it? The verdict can be YES, NO, or SPLIT.
    - **pure recompute** (this step): is there a *mathematical function* that anyone can compute from public inputs to derive the expected output? The answer is a list of functions, regardless of whether the overall verdict is verifiable.
    
@@ -29,8 +37,10 @@ The output has two layers:
 
    Examples of pure recompute from existing conformance vectors:
    - ERC-8004: `agentId = bytes32(uint256(registryId))` — left-padded, no hash (`step: "8004/agent-id"`)
-   - ERC-8299: `raw_input_hash = keccak256(raw_user_input)` (`step: "wyriwe/raw"`)
-   - ERC-8299: `sanitization_pipeline_hash = keccak256(utf8(cid) \|\| raw_input_hash)` (`step: "wyriwe/pipeline"`)
+   - ERC-8299 (L1-L3, input provenance): `raw_input_hash = keccak256(raw_user_input)` (`step: "wyriwe/raw"`)
+   - ERC-8299 (L1-L3, input provenance): `sanitization_pipeline_hash = keccak256(utf8(cid) \|\| raw_input_hash)` (`step: "wyriwe/pipeline"`)
+   - ERC-8299 (**L4, judgment chain-of-custody**): `rawProposalHash = sha256(utf8(artifact))` — note **sha256**, not keccak256: L4 anchors off-chain (relay-published) verdicts as well as on-chain ones
+   - ERC-8299 (**L4, judgment chain-of-custody**): `verdictHash = "sha256:" + sha256(JCS(preimage fields))` — the producer's own published `decision_ref_preimage_fields`, sorted, JCS-canonical; binds the verdict to its proposal so a verdict cannot be replayed against a different one ("verdict-shopping")
    - ERC-8301: `taskHash = keccak256(abi.encode(stage, taskSeq, inputHash, timestamp, expiresAt, innerHash, workflowRunId))` (`step: "8301/task-hash"`)
    - Scope-contestation: `scopeRoot = keccak256(abi.encode(merkleRoot, count))` (`step: "scope/binding"`)
    - ENS: `namehash(name)` per EIP-137 (`step: "ens/namehash"`)
@@ -41,7 +51,7 @@ The output has two layers:
    - Scope-contestation: materiality contest check (`step: "scope/contest-verify"`)
    - ERC-8312: cap conservation invariant (`step: "8312/cap-conservation"`)
 
-   Read the conformance vectors at `/Users/shakku/code/recompute-kit/conformance/agent-flow.vectors.json` — they are the source of truth for what pure recompute functions exist. Each vector has a `step` field identifying the computation and `inputs`/`expected` for testing. Cross-reference steps with the ERC's claims.
+   Read the conformance vectors at ``recompute-kit/conformance/agent-flow.vectors.json` (clone it as a sibling of this repo, or set `RECOMPUTE_KIT` to its path)` — they are the source of truth for what pure recompute functions exist. Each vector has a `step` field identifying the computation and `inputs`/`expected` for testing. Cross-reference steps with the ERC's claims.
 
    If pure recompute functions exist, add them to the proposed API in step 5. Propose one function per distinct computation, each documented with the ERC section it comes from. Don't bundle unrelated computations into one function.
 
