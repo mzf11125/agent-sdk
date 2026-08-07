@@ -47,7 +47,19 @@ export function computeVerdictHash(
   fields: Record<string, string | null>,
   preimageFields: readonly string[],
 ): string {
-  const sortedKeys = [...preimageFields].sort()
+  // JCS/RFC-8785 requires CODE POINT order. Array.prototype.sort() compares UTF-16 code
+  // units, which differs for any key above U+FFFF (a surrogate pair sorts below U+E000-
+  // U+FFFF characters) — that divergence produced a different hash than the Python port
+  // on the same input. Compare by code point explicitly. (cross-lane vector:
+  // testkit/vectors/erc8299-l4.vectors.json, step 8299-l4/verdict-hash key-sort case)
+  const cp = (s: string) => Array.from(s).map((c) => c.codePointAt(0)!)
+  const sortedKeys = [...preimageFields].sort((a, b) => {
+    const A = cp(a), B = cp(b)
+    for (let i = 0; i < Math.min(A.length, B.length); i++) {
+      if (A[i] !== B[i]) return A[i] - B[i]
+    }
+    return A.length - B.length
+  })
   const parts = sortedKeys.map(
     (k) => JSON.stringify(k) + ':' + JSON.stringify(fields[k] ?? null),
   )
