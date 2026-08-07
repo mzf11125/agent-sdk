@@ -109,7 +109,34 @@ The output has two layers:
      | `abi.encode(same-type pairs)` | `(val1, val2).abi_encode()` — works for homogeneous types (both FixedBytes, both U256) |
      | `abi.encode(mixed types)` | Use `alloy_core::sol! { struct S { type1 field1; type2 field2; ... } }` then `alloy_core::sol_types::SolValue::abi_encode(&s)` — needed when types differ (e.g. `uint8 + uint256 + bytes32`) because Rust tuples don't blanket-impl `SolValue` for `u8` |
 
-8. **Run the recompute tests separately first.** Before touching any contract infrastructure, run `npx vitest run <path-to-recompute.test.ts>` (TS), `pytest <path-to-test_recompute.py>` (Python), and `cargo test -p agent-sdk-core` (Rust). These must pass without any blockchain node. If they fail, debug the recompute implementation before proceeding to Layer 1.
+   **e) Go `recompute.go` + inline tests:**
+   - Generate `go/<category>/<erc_lowercase>/recompute.go` (lowercase ERC segment, e.g. `erc8275`).
+   - Package name: the lowercase ERC segment (e.g. `package erc8275`).
+   - **Imports:** Use `github.com/ethereum/go-ethereum/crypto` for hashes, `github.com/ethereum/go-ethereum/common` for `Hash` and `HexToHash`, `encoding/binary` for integer-to-bytes32 padding, `github.com/ethereum/go-ethereum/accounts/abi` for ABI encoding, `errors` for sentinel errors.
+   - Pure stateless functions — no network, no contract address, no RPC. Each function: doc comment with ERC section, clean input types (`uint64`, `common.Hash`, `string`), return `(result, error)`.
+   - Function naming: PascalCase (Go export convention), e.g. `ComputeWinRate`, `ComputeAgentId`, `ComputeObservationDigest`.
+   - Return `error` for invalid inputs (zero where division by zero would occur, empty where required) — never `panic`.
+   - Write inline tests in `recompute_test.go` in the same package directory. Use stdlib `testing`: `func TestGoldenXxx(t *testing.T) { ... }`. Inline golden vectors (duplicate expected values from recompute-kit) are the primary test. Each golden vector gets its own `Test` function. Edge cases: zero, empty input, different-inputs-different-hash, max values.
+   - Also test from recompute-kit JSON when available: read `../../../../../recompute-kit/conformance/agent-flow.vectors.json`, filter by step, assert each. Use `encoding/json` stdlib. Wrap in a helper that logs and skips when the file is missing.
+   - Tests run with `go test ./go/<category>/<erc_lowercase>/...` — no anvil or network needed.
+
+   **Concrete patterns by operation type:**
+
+     | Operation | Go pattern |
+     |-----------|-----------|
+     | `bytes32(uint256(x))` left-pad | `var b common.Hash; binary.BigEndian.PutUint64(b[24:], x)` — zero-fill then place u64 at bytes 24-31 |
+     | `keccak256(bytes)` | `crypto.Keccak256Hash(data)` — returns `common.Hash` |
+     | `keccak256(utf8(str))` | `crypto.Keccak256Hash([]byte(s))` |
+     | `concat(a, b)` then keccak | `combined := append(a, b...); crypto.Keccak256Hash(combined)` |
+     | `abi.encode(same-type pairs)` | `typ, _ := abi.NewType("bytes32", "", nil); args := abi.Arguments{{Type: typ}, {Type: typ}}; packed, _ := args.Pack(val1, val2)` |
+     | `abi.encode(mixed types)` | Define each type with `abi.NewType`: `uint8Type, _ := abi.NewType("uint8", "", nil); bytes32Type, _ := abi.NewType("bytes32", "", nil); uint256Type, _ := abi.NewType("uint256", "", nil)`. Then `args := abi.Arguments{{Type: uint8Type}, {Type: uint256Type}, {Type: bytes32Type}, ...}` and `packed, _ := args.Pack(stage, taskSeq, inputHash, ...)` |
+     | integer arithmetic | Standard Go `uint64` operators. Basis-points formula example: `num := wins * 20000; result := (num + total) / (2 * total)` |
+     | `sha256(bytes)` | `h := sha256.Sum256(data)` — returns `[32]byte`. Format with `fmt.Sprintf("0x%x", h[:])`. Uses stdlib `crypto/sha256` and `fmt` — no go-ethereum dependency. **CRITICAL: ERC-8299 L4 uses sha256, NOT keccak256 — do not mix up.** |
+     | `"sha256:" + sha256(JCS(...))` | JCS (RFC 8785) canonicalization in Go: (1) `sort.Strings(keys)` — Go's byte-order sort = code-point sort for UTF-8, so it's RFC-8785-correct. (2) Build canonical JSON string: for each sorted key `k`, `keyJSON, _ := json.Marshal(k); valJSON, _ := json.Marshal(v); parts = append(parts, string(keyJSON)+":"+string(valJSON))`. (3) `canon := "{" + strings.Join(parts, ",") + "}"`. (4) `h := sha256.Sum256([]byte(canon))`. (5) Return `"sha256:" + hex.EncodeToString(h[:])`. Nil/null handling: if a key is missing from the map entirely, emit `null` (not `""`); check with `v, exists := fields[k]; if !exists { use "null" }`. Uses stdlib `crypto/sha256`, `encoding/json`, `encoding/hex`, `sort`, `strings` — no go-ethereum needed. |
+
+   **Post-generation cleanup:** After writing all recompute files, scan each file for unused imports and remove them. Also check that `go.mod` has the required dependencies (`github.com/ethereum/go-ethereum`). Run `go mod tidy` in the `go/` directory to add any missing entries to `go.mod` and `go.sum`.
+
+8. **Run the recompute tests separately first.** Before touching any contract infrastructure, run `npx vitest run <path-to-recompute.test.ts>` (TS), `pytest <path-to-test_recompute.py>` (Python), `cargo test -p agent-sdk-core` (Rust), and `go test ./go/<category>/<erc_lowercase>/...` (Go). These must pass without any blockchain node. If they fail, debug the recompute implementation before proceeding to Layer 1.
 
 9. **Implement Layer 1 (contract wrappers).**
    - Hand-write the ABI fragment for the functions/events the client uses, matching the interface exactly (no dynamic codegen from build artifacts).
@@ -124,6 +151,30 @@ The output has two layers:
      * For ERCs with no contract interface (recompute-only), skip Rust Layer 1 entirely.
    - Generate `rust/core/src/<erc_lowercase>/mod.rs` that re-exports both `recompute` and `client` modules.
 
+   - **Go `client.go`:**
+     * Generate `go/<category>/<erc_lowercase>/client.go`. Define a concrete struct with `*ethclient.Client` and `common.Address` — no generics, no DataProvider trait (Go doesn't target zkVMs):
+       ```go
+       package ercXXXX
+
+       import (
+           "github.com/ethereum/go-ethereum/common"
+           "github.com/ethereum/go-ethereum/ethclient"
+       )
+
+       type XxxClient struct {
+           rpc     *ethclient.Client
+           address common.Address
+       }
+
+       func NewXxxClient(rpc *ethclient.Client, addr common.Address) *XxxClient {
+           return &XxxClient{rpc: rpc, address: addr}
+       }
+       ```
+     * Read-only contract calls: methods return `(T, error)` using `ethclient.Client.CallContract()` with `abi.ABI.Pack(name, args...)` for input encoding and `abi.Arguments.Unpack()`/`abi.ABI.Unpack()` for output decoding. GOTCHA: `abi.Arguments.Pack()` packs the arguments ONLY — it does not prepend the 4-byte method selector. Use `a.Pack(methodName, args...)` (which does) or `append(method.ID, packed...)`; a bare `method.Inputs.Pack(...)` produces a 32-byte-zero fallback call that reverts.
+     * Write/send methods: return `(*types.Transaction, error)` using `ethclient.Client.SendTransaction()` with a signed tx built via `bind.NewKeyedTransactorWithChainID()`.
+     * ABI kept in `abi.go` as parsed `abi.ABI` from a JSON string constant, or as hand-crafted `abi.Arguments` for simple interfaces.
+     * For ERCs with no contract interface (recompute-only), skip Go Layer 1 entirely.
+
    - **Rust integration tests** (for ERCs with a contract interface):
      * Create `rust/core/tests/<erc_lowercase>_integration.rs`. This test uses the same testkit workflow as TS/Python: anvil running, contract deployed via Foundry deploy script, then calls the contract through the generated Rust client.
      * The integration test should use `alloy-provider` + `alloy-transport-http` (or the full `alloy` meta-crate) for a proper RPC client with signing, nonce management, and gas estimation. Raw `reqwest` + JSON-RPC works for `eth_call` (read-only) but NOT for `eth_sendTransaction` (writes) which need signing.
@@ -131,6 +182,16 @@ The output has two layers:
      * Define ABI inline using `alloy::sol!` macro with `#[sol(rpc)]` attribute. Use tuple types in function signatures for struct parameters (e.g. `(string, bytes)[]` not `(string, bytes32)[]` — Solidity `bytes` vs `bytes32` encode differently). Create a provider with `ProviderBuilder::new().wallet(signer).connect_http(url)` (note: `connect_http` in v2, not `on_http`). Return types from `call()` use `.0` field access (v2 changed from `._0`).
      * Signer: read the deployer private key from `testkit/.anvil-accounts.json` (account index 0) at runtime, or accept it as an env var `ANVIL_KEY`. Do NOT hardcode a specific private key — anvil generates fresh keys on each start, so a hardcoded key will fail on the next anvil session.
      * Tests match the same flow as TS/Python: anvil start → forge deploy → register/setup → read → assert. Contract address should be read from env var `ERCXXXX_ADDRESS` with a sensible fallback.
+
+   - **Go integration tests** (for ERCs with a contract interface):
+     * Create `go/test/<erc_lowercase>_integration_test.go`. Package name: `test`.
+     * Read contract address from env var `ERCXXXX_ADDRESS` with `os.Getenv("ERCXXXX_ADDRESS")`. At test start, assert address is not zero: `if addr == (common.Address{}) { t.Fatal("ERCXXXX_ADDRESS not set — deploy first via testkit/scripts/deploy.sh <category>/<ERCXXXX> <DeployScriptName>") }`.
+     * Read signer key from `../../testkit/.anvil-accounts.json` relative to the test file. Parse the JSON to extract `accounts[0].privateKey`. Use `crypto.HexToECDSA()` to create a private key and `bind.NewKeyedTransactorWithChainID()` to create an auth for transactions.
+     * Connect to anvil: `ethclient.Dial("http://127.0.0.1:8545")`.
+     * ABI: define the interface inline using a JSON ABI string + `abi.JSON(strings.NewReader(abiJSON))`.
+     * Tests match the same flow as TS/Python/Rust: anvil start → forge deploy → register/setup → read → assert.
+     * If the ERC deploys multiple contracts (multi-line output from deploy.sh), read all comma-separated or newline-separated addresses from the env var.
+     * Run with `ERCXXXX_ADDRESS=0x... go test -v ./go/test/ -run TestERCXXXX`.
    - If the ERC needs a contract to deploy for testing and `agent-ercs` has no base implementation yet, write a minimal reference implementation under `testkit/contracts/mocks/<category>/<ERCXXXX>/` (one file per contract if the ERC needs more than one), clearly commented as local-testing-only (see `MockIdentityRegistry.sol` for a single-contract pattern, `MockProofVerifier.sol`/`MockAgentVerifier.sol`/`MockAgentVerifiable.sol` for a multi-contract one), plus a Foundry unit test for it/them under `testkit/test/<category>/<ERCXXXX>/`.
    - Write `testkit/script/<category>/<ERCXXXX>/Deploy<ERCXXXX>.s.sol` (file basename must match its contract name, e.g. `DeployERC8301.s.sol` containing `contract DeployERC8301` — Foundry keys broadcast artifacts by script basename only, so reusing a generic name like `Deploy.s.sol` across ERCs would collide). If the ERC needs several wired-together contracts, deploy all of them in one script (constructor-inject each into the next) — `testkit/scripts/deploy.sh` prints one address per line in the order each was deployed; use `deployContracts()`/`deploy_contracts()` (plural, returning the full list) instead of the single-address `deployContract()`/`deploy_contract()` to receive all of them (see `typescript/test/verify/ERC8274/erc.test.ts` / `python/tests/verify/erc8274/test_erc.py`).
    - Write tests for both languages that deploy via `testkit/scripts/deploy.sh` (see `typescript/test/identity/ERC8004/erc.test.ts` and `python/tests/identity/erc8004/test_erc.py` for the single-contract wiring pattern, or the ERC-8274 test files above for multi-contract) and call the client's methods. For any claim classified as recompute-to-verify, also test that the check rejects tampered/incorrect data (a bad proof, a bad signature) — some checks reject by returning a falsy result rather than reverting; assert whichever the contract actually does, don't assume a revert.
@@ -152,6 +213,9 @@ The output has two layers:
     - Add `pub mod <erc_lowercase>;` to `rust/core/src/lib.rs` to register the new ERC module.
     - If the ERC introduces a new category that doesn't yet exist in `rust/core/src/`, create an empty category-level `mod.rs` and add the `pub mod` line for it from `lib.rs`.
 
+    **Go:**
+    - Create the ERC package directory: `go/<category>/<erc_lowercase>/`. Go packages are self-contained — no central registration needed. Ensure `go.mod` has all required dependencies by running `go mod tidy` from the `go/` directory.
+
 11. **Update root README.** Append the new ERC to the "Supported ERCs" table in the repo root `README.md`. Match the existing row format: ERC name with link to agent-ercs, category, Contract Calls column (list client classes or `—`), Recompute column (list recompute functions or `—`). Insert in alphabetical order within its category.
 
 12. **Run every new test to green via testkit** — recompute tests first (offline), then deploy and run integration tests through the testkit harness. **This is a hard requirement: every ERC with a contract interface MUST pass its Rust integration test against a local anvil deployed via testkit before the ERC is considered done.**
@@ -160,6 +224,7 @@ The output has two layers:
     - `npx vitest run <recompute test path>` (TS)
     - `pytest <recompute test path>` (Python)
     - `cargo test -p agent-sdk-core --lib <erc_lowercase>` (Rust)
+    - `go test ./go/<category>/<erc_lowercase>/...` (Go)
 
     **Integration (Layer 1 — testkit workflow, required for ERCs with a contract interface):**
     - Start anvil: `testkit/scripts/start-anvil.sh`
@@ -169,6 +234,9 @@ The output has two layers:
     - Run Rust integration test: `export ERCXXXX_ADDRESS=<addr> && cargo test --manifest-path rust/core/Cargo.toml --test <erc_lowercase>_integration -- --nocapture`
       * The Rust test reads the contract address from `ERCXXXX_ADDRESS` env var and the signer key from `testkit/.anvil-accounts.json`. It must connect via alloy v2 to the deployed contract and call at least one read and one write method (if writable).
       * If the Rust integration test fails, do NOT proceed — fix the code, re-deploy, and re-run until green.
+    - Run Go integration test: `export ERCXXXX_ADDRESS=<addr> && go test -v ./go/test/ -run TestERCXXXX`
+      * The Go test reads the contract address from `ERCXXXX_ADDRESS` env var and the signer key from `testkit/.anvil-accounts.json`. It must connect via `ethclient.Dial` to the deployed contract and call at least one read and one write method (if writable).
+      * If the Go integration test fails, do NOT proceed — fix the code, re-deploy, and re-run until green.
     - Run each language's *full* suite — shared anvil instance and deployer account across all ERCs can reveal cross-file issues (nonce races, etc.).
     - Stop anvil: `testkit/scripts/stop-anvil.sh`
 

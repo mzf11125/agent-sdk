@@ -4,13 +4,13 @@
 
 # agent-sdk
 
-Off-chain SDKs (TypeScript, Python) for the ERCs defined in [trustless-ai/agent-ercs](https://github.com/trustless-ai/agent-ercs).
+Off-chain SDKs (TypeScript, Python, Go, Rust) for the ERCs defined in [trustless-ai/agent-ercs](https://github.com/trustless-ai/agent-ercs).
 
 ## What this is
 
 `agent-sdk` is the off-chain half of the [trustless-ai](https://github.com/trustless-ai) stack — `agent-ercs` defines the on-chain Solidity interfaces, and this repo provides the client libraries that talk to them. It does two things:
 
-- **Call contracts** — typed clients that read and write deployed ERC contracts, wrapping `viem` (TypeScript) / `web3.py` (Python) with the exact types and method names from each ERC interface.
+- **Call contracts** — typed clients that read and write deployed ERC contracts, wrapping `viem` (TypeScript) / `web3.py` (Python) / `ethclient` (Go) / `alloy` (Rust) with the exact types and method names from each ERC interface.
 - **Recompute claims** — pure stateless functions that reproduce ERC-defined cryptographic operations (hashing, padding, encoding, arithmetic) from public inputs, without touching a chain. Every recompute function is tested against golden conformance vectors so you can verify a claim locally, offline, or in a browser.
 
 > **This SDK is AI-generated, not hand-written.** Every ERC's client code, tests, and documentation is produced by an AI coding agent following the `/add-erc` skill — not typed by a human line by line. See [Adding a new ERC](#adding-a-new-erc).
@@ -76,6 +76,42 @@ result = client.some_method(...)
 from agent_sdk.<category>.<ercxxxx>.recompute import some_hash
 
 hash = some_hash(public_input)
+```
+
+### Go
+
+```bash
+go get github.com/trustless-ai/agent-sdk/go
+```
+
+```go
+// Contract call — talk to a deployed ERC contract
+import "github.com/trustless-ai/agent-sdk/go/<category>/<erc_lowercase>"
+
+client := ercxxxx.NewXxxClient(rpcClient, contractAddress)
+result, err := client.SomeMethod(...)
+
+// Recompute — verify a claim without touching the chain
+hash, err := ercxxxx.ComputeSomeHash(publicInput)
+```
+
+### Rust
+
+```bash
+# See rust/ directory — Cargo workspace with core + providers crates
+```
+
+```rust
+// Contract call — via DataProvider trait (host or guest context)
+use agent_sdk_core::erc8281::ObservationCommitmentClient;
+
+let client = ObservationCommitmentClient::new(provider);
+let recorded = client.check_recorded(digest)?;
+
+// Recompute — pure stateless function
+use agent_sdk_core::erc8275::compute_win_rate;
+
+let rate = compute_win_rate(16, 15); // Some(5161)
 ```
 
 Each ERC's own `README.md` documents the full method list, types, and whether `verify()` is available for that ERC.
