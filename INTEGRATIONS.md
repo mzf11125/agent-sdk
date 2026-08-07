@@ -23,7 +23,7 @@ Open a PR adding one row. Requirements:
 
 | project | what it adds | maintainer | repo |
 |---|---|---|---|
-| _(none yet)_ | | | |
+| Bastion | A policy gate beside the ERC stack. It runs pre-execution simulation, programmable rules, and a human in the loop step, then emits the allow or deny as a zero knowledge verdict (CAPV, draft ERC-8354) that an on chain Guard consumes, so a reader checks the gate ran without trusting the API (**gate contract under active development**). | ZKOS Labs | https://github.com/zkos-labs/bastion |
 
 ## Building an integration
 
