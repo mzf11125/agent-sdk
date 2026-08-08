@@ -43,20 +43,26 @@ Keep these in the ERCs. A policy engine that reimplements any of them has taken 
 - **Provenance.** The binding from raw input to what the model received is ERC-8299 (WYRIWE). A policy decision can depend on the provenance hash. It does not recompute provenance and present its own version as authoritative.
 - **Anchoring.** The action timeline is ERC-8263. The policy verdict can be one input to what gets anchored. The policy engine does not decide the anchor's meaning.
 - **Commitment semantics.** Observation and re-check commitments are ERC-8281 (OCP). The log is the ledger. A policy layer reuses those commitments, it does not redefine them.
+- **Metering.** Caps, rate limits, and remaining budget are ERC-8312's surface. A policy layer may read `checkStatefulBound` or `computeRemainingHeadroom` and deny on the result. It must not become the authority on what remaining budget *is* - two components computing their own notion of headroom means the on-chain one is no longer load-bearing. Derive from 8312, gate on what it reports.
+- **Source-token binding.** Whether the actor still owns the source token is ERC-8323's domain. Naive `ownerOf(tokenId) == actor` is wrong because ownership legitimately re-converges through a canonical TBA or a binding-contract escrow. The conformant 3-case rule is demonstrated in `agent-contracts-examples/source-binding-sovereignty`, which walks four states and asserts the divergence from `ownerOf` equality at states 3-4. Gate on 8323's canonical binding, not on a re-derived ownership check.
 
-The pattern across all five: the policy layer is a *consumer* of ERC facts and a *producer* of one new fact (the verdict). It is never the authority on facts the ERCs already own.
+The pattern across all seven: the policy layer is a *consumer* of ERC facts and a *producer* of one new fact (the verdict). It is never the authority on facts the ERCs already own.
 
 ## 3. What the decision must expose to stay recomputable
 
-This is the requirement most policy integrations miss. "Our engine evaluated the policy and it passed" is an assertion about a hosted endpoint. Nobody can check it. Per `INTEGRATIONS.md`, an integration whose claims are only assertable is still welcome, but it has to say so plainly, and a policy gate that only asserts is a weak link on a stack whose entire premise is independent verification.
+This is the requirement most policy integrations miss. "Our engine evaluated the policy and it passed" is an assertion about a hosted endpoint. Nobody can check it. Per `INTEGRATIONS.md`, an integration whose claims are only `agent_reported` is still welcome, but it has to say so plainly, and a policy gate that only reports is a weak link on a stack whose entire premise is independent verification.
 
-The strong version emits the verdict as an artifact a third party can check without trusting the engine. Two shapes qualify.
+The strong version emits the verdict as an artifact a third party can check without trusting the engine. The SDK already carries a vocabulary for how checkable a claim is - the `source_class` values the console cells and recompute-kit use: `agent_reported`, `attested`, `recomputable`. A policy verdict travels in the same field as everything else. Two shapes qualify, and a third state that must exist.
 
-**a) An on chain consumable verdict proof.** The engine proves, in zero knowledge, that the action clears a policy that is committed but never revealed, and a Guard contract consumes that proof on chain. Consuming reverts unless the verdict is for this domain, sits on an accepted policy root, burns an unused nullifier, and carries a valid proof. Now "the gate ran" is checkable, because the gate ran if and only if the Guard consumed the verdict. The policy itself stays private. The check does not.
+**a) Unavailable (the third outcome).** A policy engine is a network dependency sitting in the action path, and the interesting case is when it times out, errors, or returns something unparseable. Silent-proceed turns the gate into decoration. Silent-deny is a liveness failure that looks like a policy decision. Both are the same defect: a skip path that never touches the verdict.
 
-**b) A recomputable commitment or signed record.** The engine emits an ERC-8281 style commitment, or a signed record, whose value a reader reproduces from public inputs. The membrane rule for this repo applies: ship a recompute or verify step and document it near the top of the README. If the decision digest is derivable, expose the derivation. Do not re-assert a number the reader could compute.
+Per `NODES.md`: *unreachable ⇒ pending-abstain (AMBER discipline - never treated as failure).* Could-not-check is never a pass and never a fail. The verdict has three outcomes - proceed, deny, unavailable - and the third must be distinguishable downstream from both.
 
-One discipline binds both shapes together with the rest of the SDK: if the policy layer needs to state something the SDK can already derive, it derives it rather than re-asserting it. Cross lane vectors live in `testkit/vectors/` and `recompute-kit/conformance/`, and an integration that computes the same values is welcome to check itself against them.
+**b) An on-chain consumed verdict proof (`attested`).** The engine proves, in zero knowledge, that the action clears a policy that is committed but never revealed, and a Guard contract consumes that proof on chain. Consuming reverts unless the verdict is for this domain, sits on an accepted policy root, burns an unused nullifier, and carries a valid proof. ZK validity is delegated to the verifier contract. Now "the gate ran" is checkable, because the gate ran if and only if the Guard consumed the verdict. The policy itself stays private. The consumed event on chain does not.
+
+**c) A recomputable commitment or signed record (`recomputable`).** The engine emits an ERC-8281 style commitment, or a signed record, whose value a reader reproduces from public inputs. The membrane rule for this repo applies: ship a recompute or verify step and document it near the top of the README. If the decision digest is derivable, expose the derivation. Do not re-assert a number the reader could compute.
+
+One discipline binds all shapes together with the rest of the SDK: if the policy layer needs to state something the SDK can already derive, it derives it rather than re-asserting it. Cross lane vectors live in `testkit/vectors/` and `recompute-kit/conformance/`, and an integration that computes the same values is welcome to check itself against them.
 
 ## 4. Worked example: Bastion and CAPV
 
@@ -66,11 +72,14 @@ CAPV (Confidential Agent Policy Verdicts, draft ERC-8354) is the artifact that m
 
 Crucially, this composes *beside* the primitives, matching sections 1 and 2. The Guard gates whether the action proceeds. It does not decide identity, it does not re-verify the inference proof, it does not redefine the anchor. In the composed run, the CAPV verdict lands through the same `IProofVerifier` boundary as an ERC-8274 inference proof and a `recompute` verdict, presented on one ledger and checkable against one socket. Two orthogonal guarantees on one action: the inference ran (ERC-8274, the recompute corner) and the resulting action cleared a policy that was never revealed (CAPV, the confidential corner).
 
+A reader of a consumed CAPV verdict sees two layers. Confirming that the Guard consumed it means recomputing chain state - that check is `recomputable`. The ZK proof validity itself is delegated to the verifier contract - that check is `attested`. The verdict is both at different layers, and the integration should say which layer each guarantee lives at.
+
 Discussion and reference: the CAPV draft on Ethereum Magicians (`ethereum-magicians.org/t/draft-idea-confidential-agent-policy-verdicts/29088`), which builds on ERC-8004 and ERC-7812, and the integration itself at `github.com/zkos-labs/bastion`.
 
 ## Checklist for any policy integration
 
 - The verifier still decides validity. The policy engine decides only proceed or not.
-- Identity, proof, provenance, anchoring, and commitment semantics stay in their ERCs.
-- The verdict is emitted as a checkable artifact (a consumed on chain proof, or a recomputable commitment), or the integration says plainly that its claim is only assertable.
+- Identity, proof, provenance, anchoring, commitment semantics, metering, and source-token binding stay in their ERCs. The policy layer derives from them, it does not re-implement them.
+- The verdict has three outcomes - proceed, deny, unavailable - and could-not-check is a distinct third state, never silently treated as pass or fail.
+- The verdict's checkability travels in the same `source_class` field as everything else (`agent_reported`, `attested`, or `recomputable`).
 - Anything the SDK can derive is derived, not re-asserted, and is checked against the conformance vectors where they exist.
