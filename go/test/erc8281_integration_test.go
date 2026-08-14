@@ -10,7 +10,6 @@
 package test
 
 import (
-	"context"
 	"crypto/ecdsa"
 	"encoding/json"
 	"fmt"
@@ -19,7 +18,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -48,15 +46,9 @@ func TestERC8281RecordAndCheckRecorded(t *testing.T) {
 	digest := crypto.Keccak256Hash([]byte("hello"))
 	unknown := crypto.Keccak256Hash([]byte("never-recorded"))
 
-	tx, err := client.Record(digest)
-	if err != nil {
+	if _, err := client.Record(digest); err != nil {
 		t.Fatalf("Record(%s): %v", digest.Hex(), err)
 	}
-	receipt, err := bind.WaitMined(context.Background(), rpc, tx)
-	if err != nil {
-		t.Fatalf("WaitMined(%s): %v", tx.Hash().Hex(), err)
-	}
-	t.Logf("record tx %s mined in block %d", tx.Hash().Hex(), receipt.BlockNumber)
 
 	recorded, err := client.CheckRecorded(digest)
 	if err != nil {

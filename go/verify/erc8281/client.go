@@ -36,9 +36,8 @@ func NewObservationCommitmentClient(rpc *ethclient.Client, addr common.Address, 
 }
 
 // Record commits a digest on-chain via IObservationCommitment.record,
-// emitting the Recorded(digest, committer) event. The returned transaction
-// is signed and broadcast; the caller can wait for its receipt to extract
-// the chain/block/log position for the proof envelope.
+// emitting the Recorded(digest, committer) event. The transaction is mined
+// before this call returns so a subsequent CheckRecorded sees the record.
 //
 // Gas limit, base fee and nonce are resolved against the live node; the
 // chain id is fetched from the RPC at call time. Returns ErrNoSigner if the
@@ -67,6 +66,9 @@ func (c *ObservationCommitmentClient) Record(digest common.Hash) (*types.Transac
 	tx, err := bound.Transact(auth, "record", digest)
 	if err != nil {
 		return nil, fmt.Errorf("erc8281: record(%s): %w", digest.Hex(), err)
+	}
+	if _, err := bind.WaitMined(ctx, c.rpc, tx); err != nil {
+		return nil, fmt.Errorf("erc8281: wait for record to mine: %w", err)
 	}
 	return tx, nil
 }
