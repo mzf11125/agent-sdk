@@ -37,12 +37,14 @@ func NewObservationCommitmentClient(rpc *ethclient.Client, addr common.Address, 
 
 // Record commits a digest on-chain via IObservationCommitment.record,
 // emitting the Recorded(digest, committer) event. The transaction is mined
-// before this call returns so a subsequent CheckRecorded sees the record.
+// before this call returns and the receipt is returned, so a subsequent
+// CheckRecorded sees the record. The context controls how long the client
+// waits for the transaction to mine.
 //
 // Gas limit, base fee and nonce are resolved against the live node; the
 // chain id is fetched from the RPC at call time. Returns ErrNoSigner if the
 // client has no private key.
-func (c *ObservationCommitmentClient) Record(digest common.Hash) (*types.Transaction, error) {
+func (c *ObservationCommitmentClient) Record(ctx context.Context, digest common.Hash) (*types.Receipt, error) {
 	if c.key == nil {
 		return nil, ErrNoSigner
 	}
@@ -50,7 +52,6 @@ func (c *ObservationCommitmentClient) Record(digest common.Hash) (*types.Transac
 	if err != nil {
 		return nil, fmt.Errorf("erc8281: parse ABI: %w", err)
 	}
-	ctx := context.Background()
 	chainID, err := c.rpc.ChainID(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("erc8281: fetch chain id: %w", err)
@@ -59,18 +60,19 @@ func (c *ObservationCommitmentClient) Record(digest common.Hash) (*types.Transac
 	if err != nil {
 		return nil, fmt.Errorf("erc8281: create transactor: %w", err)
 	}
-	// Transact packs the inputs via a.Pack(name, args...) — which prepends
-	// the 4-byte method selector — signs, estimates gas (GasLimit 0) and
+	// Transact packs the inputs via a.Pack(name, args...), which prepends
+	// the 4-byte method selector, then signs, estimates gas (GasLimit 0) and
 	// broadcasts through the same rpc client.
 	bound := bind.NewBoundContract(c.address, a, c.rpc, c.rpc, c.rpc)
 	tx, err := bound.Transact(auth, "record", digest)
 	if err != nil {
 		return nil, fmt.Errorf("erc8281: record(%s): %w", digest.Hex(), err)
 	}
-	if _, err := bind.WaitMined(ctx, c.rpc, tx); err != nil {
+	receipt, err := bind.WaitMined(ctx, c.rpc, tx)
+	if err != nil {
 		return nil, fmt.Errorf("erc8281: wait for record to mine: %w", err)
 	}
-	return tx, nil
+	return receipt, nil
 }
 
 // CheckRecorded reports whether the contract has ever emitted a Recorded

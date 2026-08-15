@@ -10,6 +10,7 @@
 package test
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"encoding/json"
 	"fmt"
@@ -42,11 +43,12 @@ func TestERC8281RecordAndCheckRecorded(t *testing.T) {
 	}
 
 	client := erc8281.NewObservationCommitmentClient(rpc, addr, key)
+	ctx := context.Background()
 
 	digest := crypto.Keccak256Hash([]byte("hello"))
 	unknown := crypto.Keccak256Hash([]byte("never-recorded"))
 
-	if _, err := client.Record(digest); err != nil {
+	if _, err := client.Record(ctx, digest); err != nil {
 		t.Fatalf("Record(%s): %v", digest.Hex(), err)
 	}
 

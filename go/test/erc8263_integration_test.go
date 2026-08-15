@@ -1,6 +1,7 @@
 package test
 
 import (
+	"context"
 	"os"
 	"testing"
 
@@ -28,10 +29,11 @@ func TestERC8263AnchorAndIsAnchored(t *testing.T) {
 	}
 
 	client := erc8263.NewOnChainProofClient(rpc, addr, key)
+	ctx := context.Background()
 
 	// 1. ANONYMOUS scheme (0x00): agentId MUST be zero.
 	proofAnonymous := crypto.Keccak256Hash([]byte("proof-anonymous"))
-	if _, err := client.Anchor(0x00, common.Hash{}, proofAnonymous); err != nil {
+	if _, err := client.Anchor(ctx, 0x00, common.Hash{}, proofAnonymous); err != nil {
 		t.Fatalf("Anchor(ANONYMOUS): %v", err)
 	}
 	if anchored, err := client.IsAnchored(proofAnonymous); err != nil {
@@ -43,7 +45,7 @@ func TestERC8263AnchorAndIsAnchored(t *testing.T) {
 	// 2. REGISTRY scheme (0x01): non-zero agentId.
 	proofRegistry := crypto.Keccak256Hash([]byte("proof-registry"))
 	agentID := crypto.Keccak256Hash([]byte("agent-8004-42"))
-	if _, err := client.Anchor(0x01, agentID, proofRegistry); err != nil {
+	if _, err := client.Anchor(ctx, 0x01, agentID, proofRegistry); err != nil {
 		t.Fatalf("Anchor(REGISTRY): %v", err)
 	}
 	if anchored, err := client.IsAnchored(proofRegistry); err != nil {
@@ -55,7 +57,7 @@ func TestERC8263AnchorAndIsAnchored(t *testing.T) {
 	// 3. URI_HASH scheme (0x02) via anchorWithAux with opaque extension bytes.
 	proofURI := crypto.Keccak256Hash([]byte("proof-uri"))
 	uriHash := crypto.Keccak256Hash([]byte("did:agent:example"))
-	if _, err := client.AnchorWithAux(0x02, uriHash, proofURI, []byte("hello-aux")); err != nil {
+	if _, err := client.AnchorWithAux(ctx, 0x02, uriHash, proofURI, []byte("hello-aux")); err != nil {
 		t.Fatalf("AnchorWithAux(URI_HASH): %v", err)
 	}
 	if anchored, err := client.IsAnchored(proofURI); err != nil {
@@ -94,19 +96,20 @@ func TestERC8263RejectsInvalidAnchors(t *testing.T) {
 	}
 
 	client := erc8263.NewOnChainProofClient(rpc, addr, key)
+	ctx := context.Background()
 
 	// zero proofHash must revert.
-	if _, err := client.Anchor(0x01, crypto.Keccak256Hash([]byte("a")), common.Hash{}); err == nil {
+	if _, err := client.Anchor(ctx, 0x01, crypto.Keccak256Hash([]byte("a")), common.Hash{}); err == nil {
 		t.Error("Anchor with zero proofHash: got nil error, want revert")
 	}
 
 	// ANONYMOUS scheme requires agentId == 0.
-	if _, err := client.Anchor(0x00, crypto.Keccak256Hash([]byte("b")), crypto.Keccak256Hash([]byte("c"))); err == nil {
+	if _, err := client.Anchor(ctx, 0x00, crypto.Keccak256Hash([]byte("b")), crypto.Keccak256Hash([]byte("c"))); err == nil {
 		t.Error("Anchor(ANONYMOUS) with non-zero agentId: got nil error, want revert")
 	}
 
 	// schemes 0x03+ are reserved.
-	if _, err := client.Anchor(0x03, common.Hash{}, crypto.Keccak256Hash([]byte("d"))); err == nil {
+	if _, err := client.Anchor(ctx, 0x03, common.Hash{}, crypto.Keccak256Hash([]byte("d"))); err == nil {
 		t.Error("Anchor(reserved scheme): got nil error, want revert")
 	}
 }
