@@ -7,3 +7,6 @@ edition = "2021"
 agent-sdk-core = { path = "../core" }
 alloy = { version = "2", features = ["full"] }
 tokio = { version = "1", features = ["full"] }
+
+[dev-dependencies]
+serde_json = "1"

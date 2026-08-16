@@ -32,6 +32,14 @@
       "types": "./dist/verify/ERC8299/recompute.d.ts",
       "default": "./dist/verify/ERC8299/recompute.js"
     },
+    "./verify/ERC8354": {
+      "types": "./dist/verify/ERC8354/index.d.ts",
+      "default": "./dist/verify/ERC8354/index.js"
+    },
+    "./verify/ERC8354/recompute": {
+      "types": "./dist/verify/ERC8354/recompute.d.ts",
+      "default": "./dist/verify/ERC8354/recompute.js"
+    },
     "./execution/ERC8301": {
       "types": "./dist/execution/ERC8301/index.d.ts",
       "default": "./dist/execution/ERC8301/index.js"
