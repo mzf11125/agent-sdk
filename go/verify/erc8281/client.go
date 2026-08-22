@@ -60,6 +60,10 @@ func (c *ObservationCommitmentClient) Record(ctx context.Context, digest common.
 	if err != nil {
 		return nil, fmt.Errorf("erc8281: create transactor: %w", err)
 	}
+	// The caller-supplied context governs the whole operation, including the
+	// nonce, fee and gas RPC calls performed by the transactor during
+	// broadcast, not only the mining wait.
+	auth.Context = ctx
 	// Transact packs the inputs via a.Pack(name, args...), which prepends
 	// the 4-byte method selector, then signs, estimates gas (GasLimit 0) and
 	// broadcasts through the same rpc client.
@@ -70,7 +74,12 @@ func (c *ObservationCommitmentClient) Record(ctx context.Context, digest common.
 	}
 	receipt, err := bind.WaitMined(ctx, c.rpc, tx)
 	if err != nil {
-		return nil, fmt.Errorf("erc8281: wait for record to mine: %w", err)
+		// The transaction has already been broadcast; retain its hash so the
+		// caller can still track a transaction that may later mine.
+		return nil, fmt.Errorf("erc8281: wait for record to mine (tx %s): %w", tx.Hash().Hex(), err)
+	}
+	if receipt.Status != types.ReceiptStatusSuccessful {
+		return nil, fmt.Errorf("erc8281: record reverted (tx %s)", tx.Hash().Hex())
 	}
 	return receipt, nil
 }

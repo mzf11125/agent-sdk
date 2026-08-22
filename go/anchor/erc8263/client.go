@@ -78,9 +78,10 @@ func (c *OnChainProofClient) AnchorWithAux(ctx context.Context, agentIdScheme ui
 // transact packs the inputs via a.Pack(name, args...), which prepends the
 // 4-byte method selector, then signs, estimates gas (GasLimit 0), broadcasts
 // through the same rpc client, and waits for the transaction to mine. It
-// returns the mined receipt so a caller reading state immediately afterwards
-// sees the anchored record. Guard-violating input reverts during estimation
-// and surfaces as an error here, before anything is broadcast.
+// returns the mined receipt after confirming the transaction did not revert,
+// so a caller reading state immediately afterwards sees the anchored record.
+// Guard-violating input reverts during estimation and surfaces as an error
+// here, before anything is broadcast.
 func (c *OnChainProofClient) transact(ctx context.Context, method string, args ...interface{}) (*types.Receipt, error) {
 	if c.key == nil {
 		return nil, ErrNoSigner
@@ -97,6 +98,10 @@ func (c *OnChainProofClient) transact(ctx context.Context, method string, args .
 	if err != nil {
 		return nil, fmt.Errorf("erc8263: create transactor: %w", err)
 	}
+	// The caller-supplied context governs the whole operation, including the
+	// nonce, fee and gas RPC calls performed by the transactor during
+	// broadcast, not only the mining wait.
+	auth.Context = ctx
 	bound := bind.NewBoundContract(c.address, a, c.rpc, c.rpc, c.rpc)
 	tx, err := bound.Transact(auth, method, args...)
 	if err != nil {
@@ -104,7 +109,12 @@ func (c *OnChainProofClient) transact(ctx context.Context, method string, args .
 	}
 	receipt, err := bind.WaitMined(ctx, c.rpc, tx)
 	if err != nil {
-		return nil, fmt.Errorf("erc8263: wait for %s to mine: %w", method, err)
+		// The transaction has already been broadcast; retain its hash so the
+		// caller can still track a transaction that may later mine.
+		return nil, fmt.Errorf("erc8263: wait for %s to mine (tx %s): %w", method, tx.Hash().Hex(), err)
+	}
+	if receipt.Status != types.ReceiptStatusSuccessful {
+		return nil, fmt.Errorf("erc8263: %s reverted (tx %s)", method, tx.Hash().Hex())
 	}
 	return receipt, nil
 }
