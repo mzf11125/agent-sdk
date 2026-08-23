@@ -249,15 +249,9 @@ mod tests {
     fn golden_vectors_json() {
         // Conformance vectors live in the testkit, alongside every other
         // language. Reading them here (rather than only inline constants) keeps
-        // one source of truth. Skip gracefully when the checkout is partial.
-        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../testkit/vectors/erc8354-verdict.vectors.json");
-        let data = match std::fs::read_to_string(&path) {
-            Ok(d) => d,
-            Err(_) => return, // file absent, nothing to check
-        };
-        let parsed: serde_json::Value =
-            serde_json::from_str(&data).expect("invalid vectors JSON");
+        // one source of truth.
+        let data = include_str!("../../../../testkit/vectors/erc8354-verdict.vectors.json");
+        let parsed: serde_json::Value = serde_json::from_str(data).expect("invalid vectors JSON");
 
         fn h32(s: &str) -> FixedBytes<32> {
             let bytes = alloy_primitives::hex::decode(s.strip_prefix("0x").unwrap_or(s))
