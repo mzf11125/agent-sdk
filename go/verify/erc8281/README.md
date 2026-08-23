@@ -14,19 +14,24 @@ deployed ERC-8281 contract.
 
 | Method | Description |
 |--------|-------------|
-| `Record(digest common.Hash) (*types.Transaction, error)` | Send `record(digest)` — emits `Recorded(digest, committer)`. Returns the signed, broadcast transaction. Requires a signer key (chain id is fetched from the RPC at call time). Returns `ErrNoSigner` if the client has none. |
+| `Record(ctx context.Context, digest common.Hash) (*types.Receipt, error)` | Send `record(digest)` — emits `Recorded(digest, committer)`. Waits for the transaction to mine and returns the mined receipt (after confirming it did not revert). The supplied context owns the timeout and cancellation. Requires a signer key (chain id is fetched from the RPC at call time). Returns `ErrNoSigner` if the client has none. |
 | `CheckRecorded(digest common.Hash) (bool, error)` | Scan the contract's `Recorded` event log for the digest from block 0. The event log is the ledger — no on-chain getter exists. |
 
 The client is a concrete struct wrapping `*ethclient.Client`,
 `common.Address`, and an optional signer key — no generics:
 
 ```go
-import "github.com/trustless-ai/agent-sdk/go/verify/erc8281"
+import (
+	"context"
+
+	"github.com/trustless-ai/agent-sdk/go/verify/erc8281"
+)
 
 rpc, _ := ethclient.Dial("http://127.0.0.1:8545")
 key, _ := crypto.HexToECDSA("...")
 client := erc8281.NewObservationCommitmentClient(rpc, common.HexToAddress(erc8281Address), key)
-tx, err := client.Record(common.HexToHash("0x..."))
+ctx := context.Background()
+receipt, err := client.Record(ctx, common.HexToHash("0x..."))
 recorded, err := client.CheckRecorded(common.HexToHash("0x..."))
 ```
 

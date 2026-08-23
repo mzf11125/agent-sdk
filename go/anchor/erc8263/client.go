@@ -47,8 +47,9 @@ func NewOnChainProofClient(rpc *ethclient.Client, addr common.Address, key *ecds
 
 // Anchor sends IOnChainProof.anchor with empty aux, emitting the
 // AnchorProof(agentIdScheme, agentId, proofHash, operator) event. The
-// returned transaction is signed and broadcast; the caller can wait for its
-// receipt to extract the chain/block/log position for the proof envelope.
+// transaction is mined before this call returns and the receipt is returned,
+// so a subsequent IsAnchored sees the record. The context controls how long
+// the client waits for the transaction to mine.
 //
 // agentIdScheme is the identity scheme byte: 0x00 ANONYMOUS (agentId MUST be
 // zero), 0x01 REGISTRY (non-zero registry record id, e.g. ERC-8004), 0x02
@@ -60,23 +61,28 @@ func NewOnChainProofClient(rpc *ethclient.Client, addr common.Address, key *ecds
 // Gas limit, base fee and nonce are resolved against the live node; the
 // chain id is fetched from the RPC at call time. Returns ErrNoSigner if the
 // client has no private key.
-func (c *OnChainProofClient) Anchor(agentIdScheme uint8, agentId common.Hash, proofHash common.Hash) (*types.Transaction, error) {
-	return c.transact("anchor", agentIdScheme, agentId, proofHash)
+func (c *OnChainProofClient) Anchor(ctx context.Context, agentIdScheme uint8, agentId common.Hash, proofHash common.Hash) (*types.Receipt, error) {
+	return c.transact(ctx, "anchor", agentIdScheme, agentId, proofHash)
 }
 
 // AnchorWithAux sends IOnChainProof.anchorWithAux with opaque extension
 // bytes for adjacent protocols (e.g. OCP digest commitments, session ids,
-// parent-proof references). Same semantics and guards as Anchor; aux is
+// parent-proof references). The transaction is mined before this call returns
+// and the receipt is returned. The context controls how long the client waits
+// for the transaction to mine. Same semantics and guards as Anchor; aux is
 // explicitly non-normative.
-func (c *OnChainProofClient) AnchorWithAux(agentIdScheme uint8, agentId common.Hash, proofHash common.Hash, aux []byte) (*types.Transaction, error) {
-	return c.transact("anchorWithAux", agentIdScheme, agentId, proofHash, aux)
+func (c *OnChainProofClient) AnchorWithAux(ctx context.Context, agentIdScheme uint8, agentId common.Hash, proofHash common.Hash, aux []byte) (*types.Receipt, error) {
+	return c.transact(ctx, "anchorWithAux", agentIdScheme, agentId, proofHash, aux)
 }
 
-// transact packs the inputs via a.Pack(name, args...) — which prepends the
-// 4-byte method selector — signs, estimates gas (GasLimit 0) and broadcasts
-// through the same rpc client. Guard-violating input reverts during
-// estimation and surfaces as an error here, before anything is broadcast.
-func (c *OnChainProofClient) transact(method string, args ...interface{}) (*types.Transaction, error) {
+// transact packs the inputs via a.Pack(name, args...), which prepends the
+// 4-byte method selector, then signs, estimates gas (GasLimit 0), broadcasts
+// through the same rpc client, and waits for the transaction to mine. It
+// returns the mined receipt after confirming the transaction did not revert,
+// so a caller reading state immediately afterwards sees the anchored record.
+// Guard-violating input reverts during estimation and surfaces as an error
+// here, before anything is broadcast.
+func (c *OnChainProofClient) transact(ctx context.Context, method string, args ...interface{}) (*types.Receipt, error) {
 	if c.key == nil {
 		return nil, ErrNoSigner
 	}
@@ -84,7 +90,6 @@ func (c *OnChainProofClient) transact(method string, args ...interface{}) (*type
 	if err != nil {
 		return nil, fmt.Errorf("erc8263: parse ABI: %w", err)
 	}
-	ctx := context.Background()
 	chainID, err := c.rpc.ChainID(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("erc8263: fetch chain id: %w", err)
@@ -93,12 +98,25 @@ func (c *OnChainProofClient) transact(method string, args ...interface{}) (*type
 	if err != nil {
 		return nil, fmt.Errorf("erc8263: create transactor: %w", err)
 	}
+	// The caller-supplied context governs the whole operation, including the
+	// nonce, fee and gas RPC calls performed by the transactor during
+	// broadcast, not only the mining wait.
+	auth.Context = ctx
 	bound := bind.NewBoundContract(c.address, a, c.rpc, c.rpc, c.rpc)
 	tx, err := bound.Transact(auth, method, args...)
 	if err != nil {
 		return nil, fmt.Errorf("erc8263: %s: %w", method, err)
 	}
-	return tx, nil
+	receipt, err := bind.WaitMined(ctx, c.rpc, tx)
+	if err != nil {
+		// The transaction has already been broadcast; retain its hash so the
+		// caller can still track a transaction that may later mine.
+		return nil, fmt.Errorf("erc8263: wait for %s to mine (tx %s): %w", method, tx.Hash().Hex(), err)
+	}
+	if receipt.Status != types.ReceiptStatusSuccessful {
+		return nil, fmt.Errorf("erc8263: %s reverted (tx %s)", method, tx.Hash().Hex())
+	}
+	return receipt, nil
 }
 
 // IsAnchored reports whether the contract has ever emitted an AnchorProof

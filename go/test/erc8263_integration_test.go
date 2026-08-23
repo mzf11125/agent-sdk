@@ -5,7 +5,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -30,47 +29,44 @@ func TestERC8263AnchorAndIsAnchored(t *testing.T) {
 	}
 
 	client := erc8263.NewOnChainProofClient(rpc, addr, key)
+	ctx := context.Background()
 
 	// 1. ANONYMOUS scheme (0x00): agentId MUST be zero.
 	proofAnonymous := crypto.Keccak256Hash([]byte("proof-anonymous"))
-	tx, err := client.Anchor(0x00, common.Hash{}, proofAnonymous)
-	if err != nil {
+	if _, err := client.Anchor(ctx, 0x00, common.Hash{}, proofAnonymous); err != nil {
 		t.Fatalf("Anchor(ANONYMOUS): %v", err)
 	}
-	receipt, err := bind.WaitMined(context.Background(), rpc, tx)
-	if err != nil {
-		t.Fatalf("WaitMined(%s): %v", tx.Hash().Hex(), err)
+	if anchored, err := client.IsAnchored(proofAnonymous); err != nil {
+		t.Fatalf("IsAnchored(ANONYMOUS): %v", err)
+	} else if !anchored {
+		t.Error("IsAnchored(ANONYMOUS) immediately after Anchor = false, want true")
 	}
-	t.Logf("anchor (ANONYMOUS) tx %s mined in block %d", tx.Hash().Hex(), receipt.BlockNumber)
 
 	// 2. REGISTRY scheme (0x01): non-zero agentId.
 	proofRegistry := crypto.Keccak256Hash([]byte("proof-registry"))
 	agentID := crypto.Keccak256Hash([]byte("agent-8004-42"))
-	if _, err := client.Anchor(0x01, agentID, proofRegistry); err != nil {
+	if _, err := client.Anchor(ctx, 0x01, agentID, proofRegistry); err != nil {
 		t.Fatalf("Anchor(REGISTRY): %v", err)
+	}
+	if anchored, err := client.IsAnchored(proofRegistry); err != nil {
+		t.Fatalf("IsAnchored(REGISTRY): %v", err)
+	} else if !anchored {
+		t.Error("IsAnchored(REGISTRY) immediately after Anchor = false, want true")
 	}
 
 	// 3. URI_HASH scheme (0x02) via anchorWithAux with opaque extension bytes.
 	proofURI := crypto.Keccak256Hash([]byte("proof-uri"))
 	uriHash := crypto.Keccak256Hash([]byte("did:agent:example"))
-	if _, err := client.AnchorWithAux(0x02, uriHash, proofURI, []byte("hello-aux")); err != nil {
+	if _, err := client.AnchorWithAux(ctx, 0x02, uriHash, proofURI, []byte("hello-aux")); err != nil {
 		t.Fatalf("AnchorWithAux(URI_HASH): %v", err)
 	}
-
-	// Every mined anchor must be found; a never-anchored hash must not.
-	for name, hash := range map[string]common.Hash{
-		"ANONYMOUS": proofAnonymous,
-		"REGISTRY":  proofRegistry,
-		"URI_HASH":  proofURI,
-	} {
-		anchored, err := client.IsAnchored(hash)
-		if err != nil {
-			t.Fatalf("IsAnchored(%s): %v", name, err)
-		}
-		if !anchored {
-			t.Errorf("IsAnchored(anchored %s proof) = false, want true", name)
-		}
+	if anchored, err := client.IsAnchored(proofURI); err != nil {
+		t.Fatalf("IsAnchored(URI_HASH): %v", err)
+	} else if !anchored {
+		t.Error("IsAnchored(URI_HASH) immediately after AnchorWithAux = false, want true")
 	}
+
+	// A never-anchored hash must not be found.
 
 	unknown := crypto.Keccak256Hash([]byte("never-anchored"))
 	anchored, err := client.IsAnchored(unknown)
@@ -100,19 +96,20 @@ func TestERC8263RejectsInvalidAnchors(t *testing.T) {
 	}
 
 	client := erc8263.NewOnChainProofClient(rpc, addr, key)
+	ctx := context.Background()
 
 	// zero proofHash must revert.
-	if _, err := client.Anchor(0x01, crypto.Keccak256Hash([]byte("a")), common.Hash{}); err == nil {
+	if _, err := client.Anchor(ctx, 0x01, crypto.Keccak256Hash([]byte("a")), common.Hash{}); err == nil {
 		t.Error("Anchor with zero proofHash: got nil error, want revert")
 	}
 
 	// ANONYMOUS scheme requires agentId == 0.
-	if _, err := client.Anchor(0x00, crypto.Keccak256Hash([]byte("b")), crypto.Keccak256Hash([]byte("c"))); err == nil {
+	if _, err := client.Anchor(ctx, 0x00, crypto.Keccak256Hash([]byte("b")), crypto.Keccak256Hash([]byte("c"))); err == nil {
 		t.Error("Anchor(ANONYMOUS) with non-zero agentId: got nil error, want revert")
 	}
 
 	// schemes 0x03+ are reserved.
-	if _, err := client.Anchor(0x03, common.Hash{}, crypto.Keccak256Hash([]byte("d"))); err == nil {
+	if _, err := client.Anchor(ctx, 0x03, common.Hash{}, crypto.Keccak256Hash([]byte("d"))); err == nil {
 		t.Error("Anchor(reserved scheme): got nil error, want revert")
 	}
 }

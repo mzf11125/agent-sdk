@@ -36,14 +36,15 @@ func NewObservationCommitmentClient(rpc *ethclient.Client, addr common.Address, 
 }
 
 // Record commits a digest on-chain via IObservationCommitment.record,
-// emitting the Recorded(digest, committer) event. The returned transaction
-// is signed and broadcast; the caller can wait for its receipt to extract
-// the chain/block/log position for the proof envelope.
+// emitting the Recorded(digest, committer) event. The transaction is mined
+// before this call returns and the receipt is returned, so a subsequent
+// CheckRecorded sees the record. The context controls how long the client
+// waits for the transaction to mine.
 //
 // Gas limit, base fee and nonce are resolved against the live node; the
 // chain id is fetched from the RPC at call time. Returns ErrNoSigner if the
 // client has no private key.
-func (c *ObservationCommitmentClient) Record(digest common.Hash) (*types.Transaction, error) {
+func (c *ObservationCommitmentClient) Record(ctx context.Context, digest common.Hash) (*types.Receipt, error) {
 	if c.key == nil {
 		return nil, ErrNoSigner
 	}
@@ -51,7 +52,6 @@ func (c *ObservationCommitmentClient) Record(digest common.Hash) (*types.Transac
 	if err != nil {
 		return nil, fmt.Errorf("erc8281: parse ABI: %w", err)
 	}
-	ctx := context.Background()
 	chainID, err := c.rpc.ChainID(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("erc8281: fetch chain id: %w", err)
@@ -60,15 +60,28 @@ func (c *ObservationCommitmentClient) Record(digest common.Hash) (*types.Transac
 	if err != nil {
 		return nil, fmt.Errorf("erc8281: create transactor: %w", err)
 	}
-	// Transact packs the inputs via a.Pack(name, args...) — which prepends
-	// the 4-byte method selector — signs, estimates gas (GasLimit 0) and
+	// The caller-supplied context governs the whole operation, including the
+	// nonce, fee and gas RPC calls performed by the transactor during
+	// broadcast, not only the mining wait.
+	auth.Context = ctx
+	// Transact packs the inputs via a.Pack(name, args...), which prepends
+	// the 4-byte method selector, then signs, estimates gas (GasLimit 0) and
 	// broadcasts through the same rpc client.
 	bound := bind.NewBoundContract(c.address, a, c.rpc, c.rpc, c.rpc)
 	tx, err := bound.Transact(auth, "record", digest)
 	if err != nil {
 		return nil, fmt.Errorf("erc8281: record(%s): %w", digest.Hex(), err)
 	}
-	return tx, nil
+	receipt, err := bind.WaitMined(ctx, c.rpc, tx)
+	if err != nil {
+		// The transaction has already been broadcast; retain its hash so the
+		// caller can still track a transaction that may later mine.
+		return nil, fmt.Errorf("erc8281: wait for record to mine (tx %s): %w", tx.Hash().Hex(), err)
+	}
+	if receipt.Status != types.ReceiptStatusSuccessful {
+		return nil, fmt.Errorf("erc8281: record reverted (tx %s)", tx.Hash().Hex())
+	}
+	return receipt, nil
 }
 
 // CheckRecorded reports whether the contract has ever emitted a Recorded
