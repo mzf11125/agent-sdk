@@ -16,6 +16,7 @@ _CONFIDENTIAL_POLICY_VERDICT_INTERFACE_ID = "0xd6da8150"
 @dataclass(frozen=True)
 class _DomainOutput:
     registrar: str
+    identity_registry: str
     verifier: str
     program_key: bytes
     max_root_age: int
@@ -119,10 +120,11 @@ class PolicyDomainRegistryClient:
         result = self._contract.functions.domain(domain_id).call()
         return _DomainOutput(
             registrar=result[0],
-            verifier=result[1],
-            program_key=result[2],
-            max_root_age=result[3],
-            active=result[4],
+            identity_registry=result[1],
+            verifier=result[2],
+            program_key=result[3],
+            max_root_age=result[4],
+            active=result[5],
         )
 
     def current_root(self, domain_id: bytes) -> tuple[bytes, int, int]:

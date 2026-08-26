@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: CC0-1.0
 pragma solidity ^0.8.20;
 
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
@@ -41,6 +41,8 @@ interface IConfidentialPolicyVerdict is IERC165 {
         bytes32 actionCommitment
     );
 
+    /// @dev The domain declares an ERC-8004 Identity Registry and `agentId` does not exist in it.
+    error AgentUnknown(uint256 agentId);
     error VerdictExpired(uint64 expiry);
     error VerdictReplayed(bytes32 nullifier);
     error ExecutorMismatch(address expected, address actual);

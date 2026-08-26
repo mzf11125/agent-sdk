@@ -119,6 +119,9 @@ def test_registry_reads(erc8354):
     domain = client.domain(DOMAIN_ID)
     assert domain.active is True
     assert domain.verifier.lower() == erc8354["verifier"].lower()
+    # No identity registry was declared, so the field decodes as the zero
+    # address and the guard's agent-existence check is a no-op.
+    assert domain.identity_registry.lower() == "0x0000000000000000000000000000000000000000"
     assert client.is_root_acceptable(DOMAIN_ID, POLICY_ROOT) is True
 
 

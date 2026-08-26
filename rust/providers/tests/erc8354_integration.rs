@@ -164,6 +164,9 @@ async fn verify_domain_and_direct_consume() {
 
     let domain = client.domain(domain_id).await.expect("domain");
     assert!(domain.active);
+    // No identity registry was declared, so the field decodes as the zero
+    // address and the guard's agent-existence check is a no-op.
+    assert_eq!(domain.identity_registry, Address::ZERO);
 
     let current = client.current_root(domain_id).await.expect("currentRoot");
     assert_eq!(current.root, root);

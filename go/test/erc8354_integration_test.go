@@ -237,6 +237,11 @@ func TestERC8354ConfidentialPolicyVerdict(t *testing.T) {
 	if !domain.Active {
 		t.Errorf("Domain.Active = false, want true")
 	}
+	// No identity registry was declared, so the field decodes as the zero
+	// address and the guard's agent-existence check is a no-op.
+	if domain.IdentityRegistry != (common.Address{}) {
+		t.Errorf("Domain.IdentityRegistry = %s, want zero address", domain.IdentityRegistry)
+	}
 
 	executorKey, err := anvilPrivateKey()
 	if err != nil {

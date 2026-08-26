@@ -84,6 +84,7 @@ CONFIDENTIAL_POLICY_VERDICT_ABI = [
 
 DOMAIN_COMPONENTS = [
     {"name": "registrar", "type": "address"},
+    {"name": "identityRegistry", "type": "address"},
     {"name": "verifier", "type": "address"},
     {"name": "programKey", "type": "bytes32"},
     {"name": "maxRootAge", "type": "uint64"},

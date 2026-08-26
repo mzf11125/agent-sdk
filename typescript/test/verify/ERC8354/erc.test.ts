@@ -153,6 +153,11 @@ describe('ConfidentialPolicyVerdictClient (ERC-8354)', () => {
     const domain = await registryClient.domain(DOMAIN_ID)
     expect(domain.active).toBe(true)
     expect(domain.verifier.toLowerCase()).toBe(verifierAddress.toLowerCase())
+    // No identity registry was declared, so the field decodes as the zero
+    // address and the guard's agent-existence check is a no-op.
+    expect(domain.identityRegistry.toLowerCase()).toBe(
+      '0x0000000000000000000000000000000000000000',
+    )
   })
 
   it('verifies a valid verdict', async () => {

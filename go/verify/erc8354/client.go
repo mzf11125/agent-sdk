@@ -21,11 +21,12 @@ const ConfidentialPolicyVerdictInterfaceID = "0xd6da8150"
 
 // Domain is the IPolicyDomainRegistry.Domain record.
 type Domain struct {
-	Registrar  common.Address
-	Verifier   common.Address
-	ProgramKey common.Hash
-	MaxRootAge uint64
-	Active     bool
+	Registrar        common.Address
+	IdentityRegistry common.Address
+	Verifier         common.Address
+	ProgramKey       common.Hash
+	MaxRootAge       uint64
+	Active           bool
 }
 
 // ConfidentialPolicyVerdictClient consumes a confidential policy verdict via

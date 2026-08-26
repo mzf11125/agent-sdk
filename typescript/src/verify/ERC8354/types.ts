@@ -14,6 +14,7 @@ export interface Verdict {
 
 export interface PolicyDomain {
   registrar: Address
+  identityRegistry: Address
   verifier: Address
   programKey: Hex
   maxRootAge: bigint

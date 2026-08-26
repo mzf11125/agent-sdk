@@ -86,6 +86,7 @@ const domainTuple = {
   type: 'tuple',
   components: [
     { name: 'registrar', type: 'address' },
+    { name: 'identityRegistry', type: 'address' },
     { name: 'verifier', type: 'address' },
     { name: 'programKey', type: 'bytes32' },
     { name: 'maxRootAge', type: 'uint64' },

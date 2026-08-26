@@ -51,6 +51,7 @@ sol! {
     interface IPolicyDomainRegistry {
         struct Domain {
             address registrar;
+            address identityRegistry;
             address verifier;
             bytes32 programKey;
             uint64 maxRootAge;
@@ -67,6 +68,7 @@ sol! {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Domain {
     pub registrar: Address,
+    pub identity_registry: Address,
     pub verifier: Address,
     pub program_key: FixedBytes<32>,
     pub max_root_age: u64,
@@ -236,6 +238,7 @@ where
             .await?;
         Ok(Domain {
             registrar: d.registrar,
+            identity_registry: d.identityRegistry,
             verifier: d.verifier,
             program_key: d.programKey,
             max_root_age: d.maxRootAge,

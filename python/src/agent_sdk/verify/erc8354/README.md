@@ -16,6 +16,8 @@ that is never disclosed on-chain.
 - `ConfidentialPolicyVerdictClient` wraps `IConfidentialPolicyVerdict`: `verify` (read), `verdict_digest` (read), `is_consumed` (read), `supports_interface` (read), and `consume` / `consume_relayed` (write).
 - `PolicyDomainRegistryClient` wraps `IPolicyDomainRegistry`: `domain`, `current_root`, `is_root_acceptable` (read-only).
 
+`domain(domain_id)` returns a domain output with six fields: `registrar`, `identity_registry`, `verifier`, `program_key`, `max_root_age`, `active`. `identity_registry` is the ERC 8004 Identity Registry this domain's agent ids live in, or the zero address on a domain that declares none, in which case the Guard's agent existence check does not apply. This mirrors `assets/erc-8354` from the merged ERC PR rather than the `agent-ercs` submodule, which still carries the earlier five field shape.
+
 ## Layer 2 — pure recompute
 
 - `compute_action_commitment(chain_id, domain_id, agent_id, target, value, call_data, action_nonce)`
