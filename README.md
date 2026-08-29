@@ -27,6 +27,7 @@ Off-chain SDKs (TypeScript, Python, Go, Rust) for the ERCs defined in [trustless
 | [ERC-8274](https://github.com/trustless-ai/agent-ercs/tree/main/contracts/verify/ERC8274) — AI Inference Proof | `verify` | `ProofVerifierClient`, `AgentVerifierClient`, `getTrustedVerifier` | — |
 | [ERC-8281](https://github.com/trustless-ai/agent-ercs/tree/main/contracts/verify/ERC8281) — Observation Commitment Protocol (OCP) | `verify` | `ObservationCommitmentClient` | `computeObservationDigest` |
 | [ERC-8299](https://github.com/trustless-ai/agent-ercs/tree/main/contracts/verify/ERC8299) — WYRIWE Input Provenance | `verify` | `WyriweAttestationClient`, `JudgmentExecutionClient` | `computeRawInputHash`, `computeSanitizationPipelineHash` |
+| [ERC-8354](https://github.com/trustless-ai/agent-ercs/tree/main/contracts/verify/ERC8354) — Confidential Agent Policy Verdicts | `verify` | `ConfidentialPolicyVerdictClient`, `PolicyDomainRegistryClient` | `computeActionCommitment`, `computeVerdictDigest` |
 | [ERC-8301](https://github.com/trustless-ai/agent-ercs/tree/main/contracts/execution/ERC8301) — Agent Execution | `execution` | `AgentWorkflowClient` | `computeTaskHash`, `computeReplyHash` |
 | [ERC-8203](https://github.com/trustless-ai/agent-ercs/tree/main/contracts/settlement/ERC8203) — Consult Escrow | `settlement` | `ConsultEscrowClient` | `computeVerdictHash` |
 | [ERC-8275](https://github.com/trustless-ai/agent-ercs/tree/main/contracts/reputation/ERC8275) — Agent Reputation | `reputation` | `AgentReputationClient` | `computeWinRate` |

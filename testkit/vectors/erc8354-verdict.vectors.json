@@ -1,0 +1,43 @@
+{
+  "schema": "agent-sdk.golden-vectors.v0",
+  "source": "derived from ERC-8354 reference implementation (zexoverz/confidential-agent-policy-verdicts) via cast",
+  "note": "Golden conformance vectors for ERC-8354 Confidential Agent Policy Verdicts. Every language port MUST reproduce expected exactly.",
+  "vectors": [
+    {
+      "id": "8354-action-commitment",
+      "step": "8354/action-commitment",
+      "spec": "ERC-8354 (ethereum/ERCs PR #1919, Action commitment)",
+      "desc": "actionCommitment = keccak256(abi.encode(chainId, domainId, agentId, target, value, keccak256(callData), actionNonce)). callData is empty (0x), so callDataHash = keccak256('') = 0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470. GUARDS the empty-callData edge: an impl that special-cases empty callData to bytes32(0) fails this vector.",
+      "inputs": {
+        "chainId": 31337,
+        "domainId": "0x34a63641b78652cdd53505da4f32cac6058bd148e3ff543f39f75997a89c2815",
+        "agentId": 1,
+        "target": "0x0000000000000000000000000000000000000001",
+        "value": 0,
+        "callData": "0x",
+        "actionNonce": 0
+      },
+      "expected": "0xcc8e5dc414db5ed2340be02c3d7fdc725fe5f1463b382a7ed13f8036a4a0b7b1"
+    },
+    {
+      "id": "8354-verdict-digest",
+      "step": "8354/verdict-digest",
+      "spec": "ERC-8354 (ethereum/ERCs PR #1919, verdictDigest EIP-712)",
+      "desc": "verdictDigest = EIP-712 hashTypedDataV4 over Verdict with domain name=ConfidentialPolicyVerdict, version=1, chainId, verifyingContract. The Verdict type is Verdict(uint256 agentId,bytes32 domainId,bytes32 policyRoot,bytes32 actionCommitment,address executor,uint64 expiry,bytes32 nullifier,uint8 decision,uint8 policyKind).",
+      "inputs": {
+        "agentId": 1,
+        "domainId": "0x34a63641b78652cdd53505da4f32cac6058bd148e3ff543f39f75997a89c2815",
+        "policyRoot": "0x34a63641b78652cdd53505da4f32cac6058bd148e3ff543f39f75997a89c2815",
+        "actionCommitment": "0xcc8e5dc414db5ed2340be02c3d7fdc725fe5f1463b382a7ed13f8036a4a0b7b1",
+        "executor": "0x0000000000000000000000000000000000000002",
+        "expiry": 2000000000,
+        "nullifier": "0x6e47261c83f90eed41cda2b00caad094c33daa0a09fec22396b3e2bfe5e222b2",
+        "decision": 1,
+        "policyKind": 0,
+        "chainId": 31337,
+        "verifyingContract": "0x0000000000000000000000000000000000000003"
+      },
+      "expected": "0xf2345f63ba9e78a068eb4f74640e6543289010540b457d8016771175ad460f32"
+    }
+  ]
+}
