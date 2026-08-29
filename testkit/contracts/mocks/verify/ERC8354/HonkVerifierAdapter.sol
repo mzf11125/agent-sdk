@@ -1,7 +1,4 @@
 // SPDX-License-Identifier: CC0-1.0
-// Vendored unmodified from the ERC-8354 reference implementation,
-// zexoverz/confidential-agent-policy-verdicts, src/HonkVerifierAdapter.sol.
-// Its interfaces match ethereum/ERCs#1919 assets/erc-8354/src byte for byte.
 pragma solidity ^0.8.20;
 
 import {IVerifier} from "./IVerifier.sol";
