@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 #
-# Run every suite in this repo: Foundry, TypeScript, Python, Go, Rust.
+# Run every suite in this repo: Foundry, TypeScript, Python, Go, Rust, plus the
+# provenance check on the vendored ERC-8354 verifier.
 #
 # CI calls this, and so can you:
 #
@@ -34,6 +35,14 @@ if [ ! -d agent-ercs/contracts ]; then
   echo "       git clone https://github.com/trustless-ai/agent-ercs" >&2
   exit 1
 fi
+
+# The vendored ERC-8354 verifier and fixture proof are what makes
+# ConsumeReal.t.sol a real cryptographic check rather than a shaped one, so the
+# hashes PROVENANCE.md pins have to hold before any of that is worth running.
+# Offline on purpose: --upstream refetches the pinned source, which would make a
+# green build depend on raw.githubusercontent.com being up.
+note "provenance (vendored ERC-8354 verifier)"
+./scripts/check-provenance.sh || FAILED="$FAILED provenance"
 
 note "forge deps"
 (cd testkit && [ -d lib/forge-std ] || forge install foundry-rs/forge-std --no-git >/dev/null 2>&1)

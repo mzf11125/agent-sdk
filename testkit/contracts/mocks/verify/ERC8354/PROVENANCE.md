@@ -20,40 +20,43 @@ without regenerating the proof, or the reverse, breaks `ConsumeReal.t.sol`.
 
 ## sha256
 
-| File | sha256 |
-|------|--------|
-| `HonkVerifier.sol` | `04895a6bc51477739fbbb9801aee23e239aa885ed1048e75af9da76feabf8406` |
-| `HonkVerifierAdapter.sol` | `085439d42da1087f397e5a2067788afd90735f6d7e2c6548fe54e7c52540feb4` |
-| `fixtures/allowlist.proof` | `2f24e925c8aff9c7c30625f1a13b6c6834de5e88ce807c7af8ad04cec9ae4dce` |
-| `fixtures/allowlist.public_inputs` | `0dd630c7c529613882e19f22e88b28b1e838baf018a96a2c21f664f4ae5f0b75` |
+Paths on the left are relative to this directory, paths in the middle are
+relative to the root of the source repo above.
+
+| File | Upstream path | sha256 |
+|------|---------------|--------|
+| `HonkVerifier.sol` | `src/verifier/HonkVerifier.sol` | `04895a6bc51477739fbbb9801aee23e239aa885ed1048e75af9da76feabf8406` |
+| `HonkVerifierAdapter.sol` | `src/HonkVerifierAdapter.sol` | `085439d42da1087f397e5a2067788afd90735f6d7e2c6548fe54e7c52540feb4` |
+| `fixtures/allowlist.proof` | `test/fixtures/allowlist.proof` | `2f24e925c8aff9c7c30625f1a13b6c6834de5e88ce807c7af8ad04cec9ae4dce` |
+| `fixtures/allowlist.public_inputs` | `test/fixtures/allowlist.public_inputs` | `0dd630c7c529613882e19f22e88b28b1e838baf018a96a2c21f664f4ae5f0b75` |
 
 ## Verify
 
-From this directory. Passes only if every vendored file is unmodified:
+That table is the only place any of this is written down. `scripts/check-provenance.sh`
+reads the repo, the commit, and the hashes straight out of it, so there is no
+second copy to keep in sync and nothing that can quietly disagree with what CI
+enforces.
+
+From the repo root, offline, checking the files as they sit in this tree:
 
 ```sh
-sha256sum -c <<'EOF'
-04895a6bc51477739fbbb9801aee23e239aa885ed1048e75af9da76feabf8406  HonkVerifier.sol
-085439d42da1087f397e5a2067788afd90735f6d7e2c6548fe54e7c52540feb4  HonkVerifierAdapter.sol
-2f24e925c8aff9c7c30625f1a13b6c6834de5e88ce807c7af8ad04cec9ae4dce  fixtures/allowlist.proof
-0dd630c7c529613882e19f22e88b28b1e838baf018a96a2c21f664f4ae5f0b75  fixtures/allowlist.public_inputs
-EOF
+./scripts/check-provenance.sh
 ```
+
+`scripts/run-all-tests.sh` runs exactly that on every CI run and fails the build
+on a mismatch, so a regenerated verifier or a swapped fixture cannot slip past
+while `ConsumeReal.t.sol` stays green against a different artifact.
 
 To confirm those hashes really are the upstream files, and not just hashes of
 whatever happens to sit here, fetch the source and hash it independently:
 
 ```sh
-C=948e090c09dd5ec1d4593013303bc5260ef7c466
-R=zexoverz/confidential-agent-policy-verdicts
-for f in src/verifier/HonkVerifier.sol \
-         src/HonkVerifierAdapter.sol \
-         test/fixtures/allowlist.proof \
-         test/fixtures/allowlist.public_inputs; do
-  printf '%s  %s\n' \
-    "$(curl -sL "https://raw.githubusercontent.com/$R/$C/$f" | sha256sum | cut -d' ' -f1)" "$f"
-done
+./scripts/check-provenance.sh --upstream
 ```
+
+That fetches each upstream path at the pinned commit and hashes it against the
+same table. It is deliberately not part of the CI run, so a green build never
+depends on `raw.githubusercontent.com` being reachable.
 
 ## Interfaces
 
