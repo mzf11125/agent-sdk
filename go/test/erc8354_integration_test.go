@@ -20,8 +20,10 @@ import (
 	"math/big"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -110,12 +112,18 @@ func anvilPrivateKeyIndexed(index int) (*ecdsa.PrivateKey, error) {
 	return key, nil
 }
 
+// runSalt makes each test binary invocation use a distinct set of domain
+// ids, so rerunning the suite against an already-deployed registry (without
+// a fresh anvil deploy) does not collide with domains a prior run left
+// registered.
+var runSalt = strconv.FormatInt(time.Now().UnixNano(), 10)
+
 // domainRootPair derives a unique domain id and policy root from seed so that
 // each test registers its own domain. A shared fixed domain id collides, and
 // the second registerDomain reverts with the registry's DomainExists error.
 func domainRootPair(seed string) (common.Hash, common.Hash) {
-	domainID := crypto.Keccak256Hash([]byte(seed))
-	root := crypto.Keccak256Hash([]byte("root-v1-" + seed))
+	domainID := crypto.Keccak256Hash([]byte(seed + "-" + runSalt))
+	root := crypto.Keccak256Hash([]byte("root-v1-" + seed + "-" + runSalt))
 	return domainID, root
 }
 

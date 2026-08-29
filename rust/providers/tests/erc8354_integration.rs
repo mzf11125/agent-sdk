@@ -6,6 +6,9 @@
 //! These tests exercise the SDK's own client (`agent_sdk_providers::erc8354`),
 //! using raw alloy only for setup (registry admin) and the verifier toggle.
 
+use std::sync::OnceLock;
+use std::time::{SystemTime, UNIX_EPOCH};
+
 use alloy::network::Ethereum;
 use alloy::primitives::{keccak256, Address, FixedBytes, U256};
 use alloy::providers::{Provider, ProviderBuilder};
@@ -127,14 +130,35 @@ fn build_verdict(
     }
 }
 
+// run_salt makes each test binary invocation use a distinct set of domain
+// ids, so rerunning the suite against an already-deployed registry (without
+// a fresh anvil deploy) does not collide with domains a prior run left
+// registered.
+fn run_salt() -> &'static [u8] {
+    static SALT: OnceLock<Vec<u8>> = OnceLock::new();
+    SALT.get_or_init(|| {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system clock before unix epoch")
+            .as_nanos();
+        nanos.to_le_bytes().to_vec()
+    })
+}
+
 // Each test registers its own domain so the tests are independent of each
 // other and of run order. A shared fixed domain id collides: the second
 // registerDomain reverts with the registry's "already registered" error.
 fn domain_for(seed: &[u8]) -> (FixedBytes<32>, FixedBytes<32>) {
-    let domain_id = keccak256(seed);
-    let mut root_seed = Vec::with_capacity(seed.len() + 7);
+    let salt = run_salt();
+    let mut domain_seed = Vec::with_capacity(seed.len() + salt.len());
+    domain_seed.extend_from_slice(seed);
+    domain_seed.extend_from_slice(salt);
+    let domain_id = keccak256(&domain_seed);
+
+    let mut root_seed = Vec::with_capacity(seed.len() + salt.len() + 7);
     root_seed.extend_from_slice(b"root-v1");
     root_seed.extend_from_slice(seed);
+    root_seed.extend_from_slice(salt);
     (domain_id, keccak256(&root_seed))
 }
 
